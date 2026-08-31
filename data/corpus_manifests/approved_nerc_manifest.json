@@ -1,0 +1,28 @@
+{
+  "documents": [
+    {
+      "filename": "cip-010-5.pdf",
+      "source_id": "nerc-cip-010-5-local",
+      "standard_id": "CIP-010",
+      "version": "5",
+      "functional_entity": "Responsible Entities; see Applicability in source PDF",
+      "jurisdiction": "Not stated in source PDF",
+      "enforcement_status": "Subject to Future Enforcement",
+      "effective_date": null,
+      "source_url": "https://www.nerc.com/globalassets/standards/reliability-standards/cip/cip-010-5.pdf",
+      "retrieval_date": "2026-08-27"
+    },
+    {
+      "filename": "cip-007-6.pdf",
+      "source_id": "nerc-cip-007-6-local",
+      "standard_id": "CIP-007",
+      "version": "6",
+      "functional_entity": "Responsible Entities; see Applicability in source PDF",
+      "jurisdiction": "Not stated in source PDF",
+      "enforcement_status": "Mandatory Subject to Enforcement",
+      "effective_date": "2016-07-01",
+      "source_url": "https://prod.nerc.com/standards/reliability-standards/cip/cip-007-6",
+      "retrieval_date": "2026-08-27"
+    }
+  ]
+}

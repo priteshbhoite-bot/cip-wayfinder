@@ -1,0 +1,39 @@
+{
+  "source_id": "synthetic-cip-fixture-001",
+  "chunks": [
+    {
+      "chunk_id": "synthetic-cip-010-5-001",
+      "text": "Synthetic learning text: record a draft baseline review for the fictional asset before requesting human review.",
+      "metadata": {
+        "standard_id": "CIP-010",
+        "version": "5",
+        "requirement_reference": "Synthetic demo reference",
+        "Functional Entity": "Synthetic entity",
+        "jurisdiction": "Synthetic demonstration jurisdiction",
+        "enforcement_status": "Synthetic fixture; not evaluated",
+        "effective_date": "2026-01-01",
+        "page": 1,
+        "section": "Synthetic section 1",
+        "source_url": "https://example.invalid/synthetic-cip-010-5",
+        "retrieval_date": "2026-08-27"
+      }
+    },
+    {
+      "chunk_id": "synthetic-cip-007-6-001",
+      "text": "Synthetic learning text: retain a fictional evidence note for human review in the local demonstration.",
+      "metadata": {
+        "standard_id": "CIP-007",
+        "version": "6",
+        "requirement_reference": "Synthetic supporting reference",
+        "Functional Entity": "Synthetic entity",
+        "jurisdiction": "Synthetic demonstration jurisdiction",
+        "enforcement_status": "Synthetic fixture; not evaluated",
+        "effective_date": "2026-01-01",
+        "page": 2,
+        "section": "Synthetic section 2",
+        "source_url": "https://example.invalid/synthetic-cip-007-6",
+        "retrieval_date": "2026-08-27"
+      }
+    }
+  ]
+}

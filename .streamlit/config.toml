@@ -1,0 +1,47 @@
+# SigmaFlow-inspired light theme for this local learning MVP.
+# This is an adaptation of the public dark-blue, blue, and green logo treatment;
+# it is not an official SigmaFlow brand configuration.
+
+[theme]
+base = "light"
+primaryColor = "#006C8F"
+backgroundColor = "#F9FBFC"
+secondaryBackgroundColor = "#EAF3F7"
+textColor = "#102A43"
+linkColor = "#006C8F"
+codeBackgroundColor = "#EAF3F7"
+codeTextColor = "#102A43"
+borderColor = "#B7D2DB"
+dataframeBorderColor = "#B7D2DB"
+dataframeHeaderBackgroundColor = "#E1EEF3"
+font = "sans-serif"
+baseRadius = "medium"
+buttonRadius = "medium"
+showWidgetBorder = true
+showSidebarBorder = true
+linkUnderline = false
+
+# Blue and green are the core visual accents. Remaining semantic colors retain
+# accessible contrast for warnings and errors in the local review workflow.
+blueColor = "#006C8F"
+blueBackgroundColor = "#E1F2F7"
+blueTextColor = "#064B64"
+greenColor = "#0A845F"
+greenBackgroundColor = "#E2F4ED"
+greenTextColor = "#075A42"
+orangeColor = "#B85C00"
+orangeBackgroundColor = "#FFF0E0"
+orangeTextColor = "#7A3C00"
+redColor = "#B42318"
+redBackgroundColor = "#FCE8E6"
+redTextColor = "#7A1A12"
+yellowColor = "#9A6700"
+yellowBackgroundColor = "#FFF6D8"
+yellowTextColor = "#674600"
+violetColor = "#4F5D95"
+violetBackgroundColor = "#ECEEFA"
+violetTextColor = "#37416D"
+grayColor = "#52616B"
+
+chartCategoricalColors = ["#006C8F", "#0A845F", "#3B82B6", "#4F5D95", "#B85C00", "#B42318", "#52616B"]
+chartSequentialColors = ["#F4FAFC", "#E1EEF3", "#C8E1E8", "#A8D1DC", "#82BCCB", "#5AA6BA", "#368CA5", "#1B718D", "#0D5775", "#063D58"]

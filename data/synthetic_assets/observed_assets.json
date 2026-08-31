@@ -1,0 +1,12 @@
+[
+  {
+    "asset_id": "SUB-ALPHA-RTU-01",
+    "software": "firmware-1.0",
+    "ports_services": ["ssh:22", "https:443"],
+    "patches": ["patch-2026-07"],
+    "accounts": ["svc_rtu", "ops_viewer"],
+    "baseline_version": "baseline-a",
+    "observation_date": "2026-08-20",
+    "approved_change_fields": []
+  }
+]

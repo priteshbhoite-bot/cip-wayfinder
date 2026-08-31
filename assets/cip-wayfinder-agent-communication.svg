@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1080" viewBox="0 0 1700 1080" role="img" aria-labelledby="title description">
+  <title id="title">CIP Wayfinder agent communication diagram</title>
+  <desc id="description">Six deterministic agents communicate through typed review state. Inputs come from a compliance analyst and local sources. A quality reviewer validates traceability before a human approval interrupt controls any guarded local export.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0 0 L0 6 L9 3 z" fill="#52616B"/></marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0 0 L0 6 L9 3 z" fill="#0A845F"/></marker>
+    <style>
+      .title { font: 700 34px Arial, sans-serif; fill: #102A43; }
+      .subtitle { font: 400 17px Arial, sans-serif; fill: #52616B; }
+      .name { font: 700 18px Arial, sans-serif; fill: #102A43; }
+      .detail { font: 400 14px Arial, sans-serif; fill: #334E68; }
+      .message { font: 400 13px Arial, sans-serif; fill: #52616B; }
+      .line { fill: none; stroke: #52616B; stroke-width: 2.5; marker-end: url(#arrow); }
+      .approved { fill: none; stroke: #0A845F; stroke-width: 3; marker-end: url(#greenArrow); }
+      .dashed { fill: none; stroke: #B85C00; stroke-width: 2.5; stroke-dasharray: 8 7; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1700" height="1080" fill="#F9FBFC"/>
+  <text x="70" y="60" class="title">CIP Wayfinder — agent communication</text>
+  <text x="70" y="90" class="subtitle">Solid arrows carry typed review state. Dashed arrows are validation and safe-recovery feedback.</text>
+
+  <rect x="70" y="145" width="250" height="92" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
+  <text x="195" y="180" text-anchor="middle" class="name">Compliance analyst</text>
+  <text x="195" y="205" text-anchor="middle" class="detail">scope + authorized public PDF</text>
+
+  <rect x="70" y="310" width="250" height="92" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
+  <text x="195" y="345" text-anchor="middle" class="name">Local source tools</text>
+  <text x="195" y="370" text-anchor="middle" class="detail">PDF validation + cited corpus retrieval</text>
+
+  <rect x="70" y="475" width="250" height="92" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
+  <text x="195" y="510" text-anchor="middle" class="name">Synthetic review tools</text>
+  <text x="195" y="535" text-anchor="middle" class="detail">evidence + baseline observations</text>
+
+  <rect x="450" y="135" width="270" height="120" rx="16" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
+  <text x="585" y="175" text-anchor="middle" class="name">1. Intake and Scope Agent</text>
+  <text x="585" y="202" text-anchor="middle" class="detail">checks required scope fields</text>
+  <text x="585" y="224" text-anchor="middle" class="detail">asks instead of guessing</text>
+
+  <rect x="875" y="135" width="270" height="120" rx="16" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
+  <text x="1010" y="175" text-anchor="middle" class="name">2. Requirement and Citation</text>
+  <text x="1010" y="202" text-anchor="middle" class="detail">uses retrieved sources only</text>
+  <text x="1010" y="224" text-anchor="middle" class="detail">returns mappings + citations</text>
+
+  <rect x="1300" y="135" width="270" height="120" rx="16" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
+  <text x="1435" y="175" text-anchor="middle" class="name">3. Control Drafting Agent</text>
+  <text x="1435" y="202" text-anchor="middle" class="detail">creates draft control objectives</text>
+  <text x="1435" y="224" text-anchor="middle" class="detail">keeps requirement IDs attached</text>
+
+  <rect x="450" y="425" width="270" height="120" rx="16" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
+  <text x="585" y="465" text-anchor="middle" class="name">4. Evidence Insight Agent</text>
+  <text x="585" y="492" text-anchor="middle" class="detail">extracts observable facts only</text>
+  <text x="585" y="514" text-anchor="middle" class="detail">ignores embedded instructions</text>
+
+  <rect x="875" y="425" width="270" height="120" rx="16" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
+  <text x="1010" y="465" text-anchor="middle" class="name">5. Risk and Remediation</text>
+  <text x="1010" y="492" text-anchor="middle" class="detail">forms potential findings</text>
+  <text x="1010" y="514" text-anchor="middle" class="detail">creates a draft plan and risk label</text>
+
+  <rect x="1300" y="425" width="270" height="120" rx="16" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="1435" y="465" text-anchor="middle" class="name">6. Human Handoff Agent</text>
+  <text x="1435" y="492" text-anchor="middle" class="detail">pauses for human decision</text>
+  <text x="1435" y="514" text-anchor="middle" class="detail">guards any local export</text>
+
+  <path d="M320 190 H450" class="line"/>
+  <text x="385" y="175" text-anchor="middle" class="message">scoped case</text>
+  <path d="M720 195 H875" class="line"/>
+  <text x="798" y="180" text-anchor="middle" class="message">validated scope</text>
+  <path d="M1145 195 H1300" class="line"/>
+  <text x="1222" y="180" text-anchor="middle" class="message">cited requirements</text>
+  <path d="M1435 255 V360 H585 V425" class="line"/>
+  <text x="1015" y="347" text-anchor="middle" class="message">draft controls + requirement IDs</text>
+  <path d="M720 485 H875" class="line"/>
+  <text x="798" y="470" text-anchor="middle" class="message">facts + gaps + confidence</text>
+  <path d="M1145 485 H1300" class="line"/>
+  <text x="1222" y="470" text-anchor="middle" class="message">findings + draft plan</text>
+
+  <path d="M320 355 H785 V195 H875" class="line"/>
+  <text x="536" y="340" text-anchor="middle" class="message">approved local chunks + citation metadata</text>
+  <path d="M320 520 H450" class="line"/>
+  <text x="385" y="505" text-anchor="middle" class="message">untrusted synthetic evidence</text>
+  <path d="M320 547 C670 680 805 620 875 545" class="line"/>
+  <text x="605" y="650" text-anchor="middle" class="message">baseline observations</text>
+
+  <rect x="720" y="705" width="290" height="102" rx="14" fill="#FFF0E0" stroke="#B85C00" stroke-width="2"/>
+  <text x="865" y="741" text-anchor="middle" class="name">Quality Reviewer</text>
+  <text x="865" y="767" text-anchor="middle" class="detail">checks citations and control links</text>
+  <text x="865" y="789" text-anchor="middle" class="detail">returns validation errors or approval to hand off</text>
+  <path d="M1010 545 V705" class="dashed"/>
+  <text x="1032" y="626" class="message">draft package</text>
+  <path d="M1010 756 H1300" class="approved"/>
+  <text x="1155" y="740" text-anchor="middle" class="message">validated package</text>
+  <path d="M720 756 C600 830 500 735 585 545" class="dashed"/>
+  <text x="570" y="810" text-anchor="middle" class="message">repair request</text>
+
+  <rect x="1295" y="705" width="280" height="102" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="1435" y="741" text-anchor="middle" class="name">Human decision</text>
+  <text x="1435" y="767" text-anchor="middle" class="detail">approve · edit · reject</text>
+  <text x="1435" y="789" text-anchor="middle" class="detail">reviewer role + rationale required</text>
+  <path d="M1435 545 V705" class="approved"/>
+
+  <rect x="1295" y="895" width="280" height="95" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="1435" y="930" text-anchor="middle" class="name">Approved local export</text>
+  <text x="1435" y="956" text-anchor="middle" class="detail">synthetic output only</text>
+  <path d="M1435 807 V895" class="approved"/>
+  <path d="M1295 780 C1210 870 1100 870 1010 807" class="dashed"/>
+  <text x="1145" y="860" text-anchor="middle" class="message">edit returns to draft plan</text>
+
+  <text x="70" y="1035" class="subtitle">Safety boundary: no agent makes a compliance determination, accesses live IT/OT data, or creates an operational workflow.</text>
+</svg>

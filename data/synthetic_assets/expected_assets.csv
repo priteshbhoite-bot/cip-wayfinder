@@ -1,0 +1,3 @@
+asset_id,software,ports_services,patches,accounts,baseline_version,observation_date
+SUB-ALPHA-RTU-01,firmware-1.0,"[""ssh:22"", ""https:443""]","[""patch-2026-07""]","[""svc_rtu"", ""ops_viewer""]",baseline-a,2026-08-01
+SUB-BRAVO-RTU-02,firmware-2.0,"[""https:443""]","[""patch-2026-07""]","[""svc_rtu""]",baseline-b,2026-08-01
