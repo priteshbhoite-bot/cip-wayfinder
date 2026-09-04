@@ -8,10 +8,10 @@ This is a local, deterministic graph for a fictional review. It uses fake agents
 
 ![CIP Wayfinder architecture diagram](../assets/cip-wayfinder-architecture.svg)
 
-**How to read the diagram:** solid arrows are the normal review path. Dashed arrows are bounded recovery or safe-stop paths. The Streamlit interface currently presents a deterministic, source-grounded package and decision preview; the LangGraph path above is separately implemented and branch-tested. The interface does not yet invoke a paid model, external service, or write-capable graph run.
+**How to read the diagram:** solid arrows are the normal review path. Dashed arrows are bounded recovery or safe-stop paths. The Streamlit interface presents a deterministic, source-grounded package, an optional separately approved Token Factory request, and approval-gated Word delivery through direct download or configured SMTP. Package approval and email-send authorization are separate gates. The LangGraph path above remains separately implemented and branch-tested.
 
 ```text
-Streamlit review screens (display + in-memory decision preview)
+Streamlit review screens (display + approval-gated in-memory Word export)
   → typed local state and local SQLite case store (explicit save consent)
   → LangGraph review workflow + in-memory checkpointer/thread_id
   → local read/compute tools and deterministic analysts
@@ -23,11 +23,13 @@ The only write-classified workflow action is the existing synthetic local export
 
 ## Optional source-grounded model seam
 
-The control-drafting step has an optional structured-provider seam. It accepts exactly one retrieved requirement mapping and constructs a request containing only its standard/version, requirement reference, source name, source locator, and retrieved excerpt. The response must remain draft-only and every meaningful field must cite exactly that requirement ID. The deterministic fake provider is still the default. The Nebius adapter is deliberately disconnected from the Streamlit UI and graph until a user selects an account-available model and explicitly approves the exact bounded request; no source text is transmitted before that approval.
+The control-drafting step has an optional structured-provider seam. It accepts exactly one retrieved requirement mapping and constructs a request containing only its standard/version, requirement reference, source name, source locator, and retrieved excerpt. The response must remain draft-only and every meaningful field must cite exactly that requirement ID. The deterministic fake provider remains the test default. The Streamlit UI connects to the Nebius Token Factory adapter only when a user explicitly approves the exact bounded request; no source text is transmitted before that approval.
 
-The Streamlit Review package now exposes that boundary as **Review and send a source-grounded draft**. It chooses one matched requirement-level local source, shows its bounded request summary, requires a checked approval statement and a separate send click, then calls Token Factory only for that one request. The returned draft is traceability-validated and held in session memory; it cannot export, save a case, create a workflow, or change an operational control.
+The Streamlit Review package exposes the model boundary as **Review and send a source-grounded draft**. It chooses one matched requirement-level local source, shows its bounded request summary, requires a checked approval statement and a separate send click, then calls Token Factory only for that one request. The returned draft is traceability-validated and held in session memory. A separate human decision can include it in a locally generated Word package; the model action itself cannot save a case, create a workflow, or change an operational control.
 
-The upload-first interface validates one user-supplied, authorized public CIP-010-5 or CIP-007-6 PDF in browser-session memory. An optional local four-step tour explains the process before upload. The UI has two workspaces: **Start a review** provides deterministic chat-style analysis choices, and **Review package** presents the related draft results in progressive expandable sections. The package opens the existing approved local SQLite corpus in read-only mode and matches the standard/version and extracted requirement labels. A match displays a short local excerpt plus page, section, source URL, and retrieval-date provenance. The app does not persist or transmit the upload; a separate future local-save action would require explicit confirmation.
+The upload-first interface validates one user-supplied, authorized public CIP-010-5 or CIP-007-6 PDF in browser-session memory. The UI has two workspaces: **Start a review** and **Review package**. After reviewing sources and drafts, a user may approve the exact package for download or email delivery with a reviewer role and rationale. The `.docx` is created in memory and can be downloaded directly. A separate form revalidates the package context, recipient, and explicit send authorization before calling SMTP. The app retains only a masked delivery receipt in session state and does not persist the document.
+
+![CIP Wayfinder review and delivery flow](../assets/cip-wayfinder-review-delivery-flow.svg)
 
 ## Happy path
 

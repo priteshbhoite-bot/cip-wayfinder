@@ -181,6 +181,11 @@
 - Use native dropdowns that accept a typed new value: NERC choices guide Functional Entity and regional-jurisdiction context, while asset scope and review objective remain clearly labeled local suggestions because they are organization-specific.
 - Add a source-grounded provider seam that constructs a draft request from exactly one retrieved requirement mapping. Keep the fake provider as the executable default; connecting Nebius remains blocked on account-model selection and explicit approval of the exact request that would transmit one retrieved excerpt.
 
+## 2026-08-31 — Multi-select case-scope intake
+
+- Change Functional Entity, Regional Entity, and asset-scope fields from one choice to local multi-select inputs, while preserving typed additions and beginner hover help.
+- Keep the existing strict Applicability Agent contract string-based by joining selected values only at its boundary; an empty selection still makes the agent ask a direct scope question rather than guessing.
+
 ## 2026-08-31 — Token Factory structured-output compatibility
 
 - Use Token Factory's documented `response_format` JSON-schema request shape when the configured base URL is Token Factory, while retaining the existing AI Studio guided-JSON shape.
@@ -202,3 +207,91 @@
 - Read ignored local provider settings only when the approved send action is invoked. Keep the key, raw request, and raw source excerpt out of the page, logs, persistence, and export.
 - Store only a traceability-validated draft result and safe model/latency summary in temporary browser session state. The existing local deterministic package remains the default and no external call is automatic.
 - Use `moonshotai/Kimi-K3` for this optional UI action because its approved no-corpus smoke request and an approved CIP-010-5 R1 draft both returned valid structured results; do not silently fall back to Kimi-K2.6 for the same action.
+
+## 2026-08-31 — Focused review interface
+
+- Reduce the landing page to the upload-and-scope task plus an optional walkthrough; remove repeated safety cards and waypoints from the main path.
+- Replace the post-upload chat-style task selector with a single handoff to the review package. Consolidate the review into requirements/sources, draft controls/remediation, evidence/baseline, and human decision; graph and optional model details are advanced.
+
+## 2026-08-31 — Unbounded intake multi-selects
+
+- Remove arbitrary selection-count limits from Functional Entity, Regional Entity, and asset-scope inputs; users may select every relevant local option.
+- Catch unexpected typed-intake validation errors at the Streamlit boundary and show a short corrective message instead of a framework stack trace.
+
+## 2026-08-31 — Safe review-package navigation
+
+- Change the Open review package button to use a Streamlit pre-rerun callback, so it updates the keyed workspace selector before that widget is instantiated.
+
+## 2026-08-31 — Hot-reload-safe retrieval boundary
+
+- Serialize the session-held uploaded standard before constructing a RetrievalQuery, so Streamlit module reloads cannot mix two Pydantic StandardVersion class identities.
+
+## 2026-08-31 — Expandable requirement excerpts
+
+- Show only an expandable full locally retrieved excerpt for each requirement, preserving the visible page/section provenance without redundant truncated text. Render it in a read-only field that wraps long lines.`r`n- Hide Streamlit's redundant empty-menu row only while one of the three intake multiselects is active and all its available options have been selected; do not change other dropdown behavior.
+## 2026-08-31 — Compact all-listed scope choices
+
+- Replace manual selection of every option with one All listed choice for Functional Entity, Regional Entity, and asset scope. Expand that compact selection only when validating the local case intake.
+- Limit manual selections to fewer than the complete local option list, so Streamlit never leaves an empty dropdown panel over the next field. Preserve typed local values and migrate an existing browser session that already selected every listed value.
+## 2026-08-31 — Focused source-and-controls application
+
+- Remove Evidence Analyst and Baseline Analyst processing from the CIP Wayfinder runtime and user interface. The app now focuses on cited requirements, draft controls/remediation, and human decision.
+- Keep the separate synthetic evidence and baseline learning modules and their tests in the repository as coursework evidence, but do not invoke or display them in the application.
+## 2026-09-01 — Requirement-aware offline drafting
+
+- Replace the ID-only deterministic control template with an offline drafter that uses the combined approved-local text for the selected requirement and recognizes the requirement area to produce specific activities, cadence, retained records, escalation, and remediation.
+- Keep the model provider optional and approval-gated. The default package remains local, source-grounded draft guidance and does not make a compliance conclusion.
+## 2026-09-01 — Local graph-display helpers
+
+- Restore the landing walkthrough and Advanced demo graph-path helpers after the simplified app flow removed their earlier implementations. Both display the four local review steps only; they do not invoke the graph, a provider, or a write.
+
+## 2026-09-01 — Bounded MVP caching
+
+- Treat the approved read-only SQLite corpus as the persistent public-standard layer and cache derived review packages with Streamlit `cache_data`, bounded to 32 entries.
+- Invalidate derived packages on public-document hash, parsed standard/requirements, corpus file revision, or cache-policy version. Do not cache raw PDF bytes, credentials, approval state, evidence, or operational data in the shared cache.
+- Cache an exact, traceability-validated model result only in the current browser session. The exact provider, model, request/prompt/source content, and output-schema version form its opaque key; the user still reviews and approves the send action before reuse.
+- Exclude semantic caching from the MVP and expose only safe per-session counts. A local developer clear button remains hidden unless `NCI_ENABLE_CACHE_CONTROLS=true`.
+
+## 2026-09-02 — Meaningful human approval and Word deliverable
+
+- Separate approval to transmit one public requirement excerpt to Token Factory from approval of the complete reviewed package. Model generation happens first so the reviewer never approves unseen content.
+- Give the package decision three explicit outcomes: Approve for export, Needs editing, and Reject. Only Approve for export, with reviewer role and rationale, creates a file.
+- Generate a genuine `.docx` entirely in browser-session memory. Include scope, requirement/source provenance, complete local draft controls, ordered remediation, any previously reviewed Token Factory draft, and the human decision.
+- Bind approval to the exact package context. Hide a prior download when the local package, intake, corpus revision, or model draft changes, and require a new decision.
+- Define approval narrowly as authorization for local draft-document export, not a compliance determination, legal opinion, workflow approval, or operational implementation.
+
+## 2026-09-02 — Restore direct intake multi-selects
+
+- Remove the compact All listed shortcuts from Functional Entity, Regional Entity, and asset scope because they add an unnecessary abstraction without improving scope selection.
+- Restore direct multi-select dropdowns containing only the real local choices. Keep multiple selection and typed custom values, and remove the artificial selection caps and submission-time expansion helpers.
+
+## 2026-09-03 — Remove non-product advanced demo details
+
+- Remove the Advanced demo details expander because its graph animation and cache diagnostics do not create a usable Visio-style workflow or help complete the review.
+- Remove the graph-path animation button and the developer-only cache-counter/clear controls from the product UI. Keep the tested LangGraph and caching implementations in the codebase as assignment architecture and internal behavior.
+- Keep the landing walkthrough, source review, draft controls/remediation, optional Token Factory enhancement, and human decision unchanged at this milestone.
+
+## 2026-09-03 — Approval-gated Word email delivery
+
+- Replace the browser download with a recipient field and configured SMTP delivery of the in-memory `.docx` attachment.
+- Keep package approval separate from the external send: the user must review the destination and attachment summary, check a send-authorization statement, and press the send button.
+- Revalidate the recipient and exact package context immediately before sending. Package or model changes invalidate the prior approval.
+- Load SMTP credentials only from environment values or the ignored `.env`; never display, log, cache, or persist them. Retain only a masked delivery receipt in browser session state.
+- Unit-test the boundary with injected recording and failing transports; automated tests make no network call and send no real email.
+
+## 2026-09-03 — Compact requirement-language display
+
+- Remove the nested fixed-height source-excerpt text area from each requirement because it creates unnecessary white space and repeats interface labels.
+- Display all matched local requirement chunks directly as literal text. Collapse PDF extraction whitespace without changing the source words.
+- Keep one compact page, section, and retrieval-date line after the language so the source remains traceable.
+
+## 2026-09-03 — Plain-language requirement summaries
+
+- Replace the literal requirement-text display with a collapsed vital-information summary covering purpose, key activity, timing, typical owner, and expected evidence.
+- Preserve compact page, section, and retrieval-date citations so the reviewer can verify the draft summary against the official local source.
+
+## 2026-09-03 — Restore direct download alongside optional email
+
+- Keep the approved Word package in browser-session memory and provide an immediate local download button after package approval.
+- Retain email as an optional, separately authorized external action. SMTP configuration is required only for email delivery, not for download.
+- Require a new package decision whenever the intake, source corpus, local draft, or optional model result changes.

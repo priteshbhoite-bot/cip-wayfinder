@@ -6,6 +6,6 @@
 - Evidence and asset records are synthetic. The MVP must not receive confidential evidence or live IT/OT exports.
 - Local corpus extraction preserves source metadata but does not replace a qualified review of the authoritative document and organization context.
 - Case persistence is local SQLite only. Checkpoint persistence is in-memory for the running process.
-- The current dashboard’s decision buttons are an in-memory preview; they do not save or export.
+- The dashboard can create an in-memory Word draft package after explicit approval. It does not persist the file, create a workflow, or make a compliance determination. Direct download is local; optional email is a separate, explicitly authorized external action that requires configured SMTP credentials.
 - Optional providers and LangSmith tracing are not connected. Any future external call needs separate explicit approval.
 - No operational control, configuration, ticket, or external workflow is deployed, activated, modified, or closed by this MVP.

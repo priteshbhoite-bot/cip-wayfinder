@@ -18,10 +18,10 @@ The remaining work is primarily submission and production-readiness evidence, no
 | Error handling and recovery | Complete | Empty retrieval, error, retry, repair, safe-stop, edit, reject, and approve branch tests | Demonstrate failure and recovery in the video. |
 | Human-in-the-loop before a write | Complete | LangGraph interrupt plus export guard; app decision preview does not bypass it | Demonstrate approve/edit/reject in the video. |
 | Tracing and evaluations | Complete for offline mode | 15 deterministic evaluations and safe LangSmith configuration preview | Optional: approved, cost-bounded live tracing run. |
-| Simple interface | Complete | Upload-first Streamlit interface with review package and human-decision preview | Show it live in the video. |
+| Simple interface | Complete | Upload-first Streamlit interface with collapsed requirement summaries, draft review sections, and a human package decision | Show it live in the video. |
 | Project documentation | Substantially complete | Architecture, agent framework, data notes, prompt log, limitations, demo script, and this check | Assemble the requested material into one final Google Doc if that is the required submission format. |
 | Five-minute-or-less video demo | Not yet evidenced | `docs/demo-script.md` and ElevenLabs brief prepare the content | Record and save the final video. |
-| GitHub code link or ZIP | Not yet evidenced | Repository is ready for review; no GitHub publication was performed | Review the final summary, then initialize/commit/publish or prepare a ZIP. |
+| GitHub code link or ZIP | In progress | The public repository exists and the reviewed release changes are prepared as one local commit | Push the prepared commit after a final human check, or prepare a ZIP. |
 | At least one real model call | Partial / optional decision | Provider abstraction supports Nebius or Fireworks preview, but live calls are intentionally blocked pending explicit approval | If the instructor requires a real call, review the exact preview and explicitly authorize a tiny paid smoke test. |
 
 ## Framework completeness
@@ -44,5 +44,5 @@ The assignment's framework asks for a one-line goal, surface, steps, tools, memo
 2. Follow `docs/demo-script.md`: show missing retrieval failure, recovery, graph interrupt, a human decision, and guarded approved export.
 3. Record the live walkthrough in under five minutes.
 4. Create one final project document from the existing architecture, data notes, prompt log, evaluation report, and lessons learned.
-5. Review the Git summary, then explicitly approve either GitHub publication or a ZIP submission.
+5. Review the prepared local commit, then explicitly approve either pushing it to GitHub or creating a ZIP submission.
 6. If a live-model call is required, first review the exact Nebius/Fireworks request and cost-sensitive scope; do not add a credential or call the provider until that approval is given.

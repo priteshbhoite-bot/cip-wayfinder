@@ -111,3 +111,22 @@ def test_source_grounded_request_rejects_multiple_selected_requirements() -> Non
         build_source_grounded_control_draft_request(
             ControlGenerationInput(retrieved_mappings=duplicated, selected_requirement_ids=["Synthetic demo reference", "Second reference"])
         )
+
+
+def test_local_drafter_uses_retrieved_patch_management_text_for_specific_actions() -> None:
+    mappings = _retrieved_mappings()
+    patch_mapping = mappings[0].model_copy(
+        update={
+            "requirement_reference": "R2",
+            "draft_summary": "CIP-007-6 Table R2 – Security Patch Management. At least once every 35 calendar days, evaluate security patches for applicability. For applicable patches, apply the patch, create or revise a mitigation plan, or document why it is not applicable.",
+        }
+    )
+    output = generate_draft_control_and_remediation(
+        ControlGenerationInput(retrieved_mappings=[patch_mapping], selected_requirement_ids=["R2"])
+    )
+
+    assert "Security Patch Management" in output.control.title.text
+    assert "Evaluate security patches" in output.control.activities[0].activity.text
+    assert "mitigation plan" in output.control.evidence_expectation.text
+    assert "35 calendar days" in output.control.trigger_frequency.text
+    assert all("synthetic" not in item.text.casefold() for item in output.control.traceable_items())

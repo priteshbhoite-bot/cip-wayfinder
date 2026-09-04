@@ -8,6 +8,7 @@ Start here for product review and local use:
 
 - [Architecture](docs/architecture.md), [agent framework](docs/agent-framework.md), and [project brief](docs/project-brief.md)
 - [Agent communication diagram](assets/cip-wayfinder-agent-communication.svg), showing the six-agent handoffs and validation loop
+- [Review and delivery flow](assets/cip-wayfinder-review-delivery-flow.svg), showing package approval followed by direct download or separately authorized email
 - [Data notes](docs/data-notes.md), [prompt/model-behavior log](docs/prompt-log.md), and [limitations](docs/limitations.md)
 - [Offline evaluation report](docs/evaluation-report.md), [sample approved case](docs/sample-approved-case.md), [submission outline](docs/submission-outline.md), and [under-five-minute demo script](docs/demo-script.md)
 - [Week 3 assignment alignment check](docs/assignment-alignment-check.md), including completion evidence and remaining delivery items
@@ -25,34 +26,36 @@ At the top of every app view, a short description explains that CIP Wayfinder re
 
 ## Hybrid upload-and-chat interface
 
-The Streamlit app now places the authorized public-PDF upload first. Its optional **How this local review works** expander contains a generated four-step infographic and a short guided tour, so the explanation is available without blocking the first task. It supports only one CIP-010-5 or CIP-007-6 document at a time, validates it locally, and keeps it in browser-session memory. After upload, the **Start a review** workspace offers four plain-language chat choices. The **Review package** workspace organizes the source, draft controls, fictional evidence/baseline examples, findings/remediation, traceability, and human decision into expandable sections instead of nine tabs.
+The Streamlit app places the authorized public-PDF upload first. Its optional **How this local review works** expander contains a generated four-step infographic and a short guided tour, so the explanation is available without blocking the first task. It supports only one CIP-010-5 or CIP-007-6 document at a time, validates it locally, and keeps it in browser-session memory. The **Review package** workspace organizes cited sources, draft controls and remediation, an optional Token Factory enhancement, and approval-gated Word delivery through direct download or optional email.
 
-The supplied public CIP PDFs are approved local source documents. The upload path matches their standard/version and extracted requirement labels against the approved local SQLite index in **read-only** mode. When a matching chunk is found, the Review package shows a short local source excerpt with standard/version, page, section, source URL, and retrieval-date provenance. Evidence and asset examples remain intentionally fictional for safety. The result is a source-grounded draft demonstration, not a real operational assessment or compliance conclusion.
+The supplied public CIP PDFs are approved local source documents. The upload path matches their standard/version and extracted requirement labels against the approved local SQLite index in **read-only** mode. When matching chunks are found, the Review package shows a collapsed, plain-language summary of the requirement's purpose, key activity, timing, typical owner, and expected evidence, followed by a short page, section, and retrieval-date citation. The official wording remains in the cited public source for reviewer verification. The result is a source-grounded draft demonstration, not a real operational assessment or compliance conclusion.
 
 The Review package has no requirement-picker. It generates one draft control and one ordered draft remediation plan for every requirement label extracted from the uploaded standard, then displays all of them with their individual requirement IDs. Each matching local-source requirement now appears with citation metadata; every draft still needs organization-specific SME tailoring.
 
 ## Demonstration flow
 
-The local Streamlit demonstration makes the review workflow visible without calling a paid model or an external service:
+The local Streamlit application keeps the workflow focused: upload and scope one public standard, review cited requirements and draft controls, optionally request a Token Factory enhancement, then make a human export decision. Assignment diagnostics and graph-animation controls are not shown as product features.
 
-1. **Case intake** — The analyst supplies Functional Entity, jurisdiction, asset scope, and review objective. The existing Applicability Agent asks direct questions for missing scope; it does not guess or decide applicability.
+The local Streamlit application makes the review workflow visible while keeping every external model call explicitly approval-gated:
+
+1. **Case intake** — The analyst supplies one or more Functional Entity, Regional Entity, and asset-scope choices plus a review objective. The existing Applicability Agent asks direct questions for missing scope; it does not guess or decide applicability.
 2. **Source-grounded package** — The uploaded CIP standard/version and requirement labels are matched against the approved local corpus index in read-only mode. Matching chunks show short, cited local excerpts.
-3. **Graph progress** — The Review package shows requirement/source/control counts and has an optional animation of the tested graph path: intake, retrieval, drafting, synthetic evidence/baseline, findings/remediation, and the human approval interrupt.
-4. **Human decision** — The in-memory preview now requires a selected decision, reviewer role, and rationale. It explains the safe outcome for edit, reject, or approve, but cannot create an export.
+3. **Optional model enhancement** — The reviewer can inspect and explicitly approve one bounded Token Factory request before reviewing its returned draft.
+4. **Human decision and deliverable** — The reviewer chooses Approve package, Needs editing, or Reject and supplies a role and rationale. Approval prepares an in-memory Word package containing the review scope, requirements and sources, draft controls, remediation, and any previously reviewed Token Factory draft. The approved package can be downloaded directly. A separate form requires the recipient, destination preview, and explicit send authorization before SMTP is called.
 
 Every landing-page field has built-in hover help. The tooltips explain what the analyst should provide, include a fictional example where useful, and restate the no-confidential-data boundary for asset scope and document upload.
 
-For the actual checkpoint/resume, bounded retries, validation repair, interrupt, and guarded approved-only export demonstration, use the existing LangGraph tests and the demo script. No GitHub publication, external tracing, model call, or operational write is part of the local UI flow.
+For the actual checkpoint/resume, bounded retries, validation repair, interrupt, and guarded approved-only export demonstration, use the existing LangGraph tests and the demo script. No GitHub publication, external tracing, or operational write is part of the local UI flow. Token Factory and SMTP are separate, explicitly approved external actions.
 
-The app does not send an uploaded PDF to a provider or external service, show raw source text, persist the upload, accept confidential evidence, read live assets, or bypass human approval for export.
+The app does not send an uploaded PDF to a provider or external service, persist the upload, accept confidential evidence, read live assets, or bypass human approval for export. Approved public source excerpts are visible to the reviewer and can be included in the explicitly approved local Word package.
 
 ## Intake reference options and future model drafting
 
-The landing page has a bundled, offline catalog of Functional Entity and Regional Entity choices collected once from public NERC material on 2026-08-31. It does not browse NERC at runtime and the options do not determine applicability. Asset scope and review objective choices are safe local suggestions because NERC does not publish a universal list for those organization-specific fields; each dropdown also permits a typed value.
+The landing page has a bundled, offline catalog of Functional Entity and Regional Entity choices collected once from public NERC material on 2026-08-31. It does not browse NERC at runtime and the options do not determine applicability. Functional Entity, Regional Entity, and asset-scope fields use straightforward multi-select dropdowns containing only the real listed choices. They accept multiple selections and typed values because a utility can have more than one relevant role, region, or review scope. Asset scope and review objective choices are safe local suggestions because NERC does not publish a universal list for those organization-specific fields.
 
-The source-grounded control-drafting seam accepts exactly one retrieved requirement mapping and sends only that record's standard/version, requirement ID, source metadata, and retrieved excerpt to a structured provider. The fake provider remains the default. The Nebius adapter supports AI Studio's guided JSON and Token Factory's documented JSON-schema response format, but is not connected to the UI or graph: before a paid call, the user must select an account-available model and explicitly approve the exact bounded request. A small connectivity smoke check is capped at 700 output tokens; a full control-plus-remediation schema is capped at 2,000 completion tokens, including Token Factory reasoning tokens, with low reasoning effort requested.
+The source-grounded control-drafting seam accepts exactly one retrieved requirement mapping and sends only that record's standard/version, requirement ID, source metadata, and retrieved excerpt to a structured provider. The fake provider remains the default for tests. The Streamlit Review package can call the Nebius Token Factory adapter only after the user reviews the bounded request and explicitly approves transmission. A small connectivity smoke check is capped at 700 output tokens; a full control-plus-remediation schema is capped at 2,000 completion tokens, including Token Factory reasoning tokens, with low reasoning effort requested.
 
-When a matched approved-local requirement is available, the Review package provides a **Review and send a source-grounded draft** expander. It uses the locally validated `moonshotai/Kimi-K3` model and previews one requirement's standard/version, citation locator, excerpt-character count, model, completion limit, and retry boundary. The analyst must check a plain-language approval statement and press the send button before the app reads the ignored local `.env` file and calls Token Factory. A validated draft remains in browser-session memory only; it is not persisted, exported, or treated as a compliance decision.
+When a matched approved-local requirement is available, the Review package provides a **Review and send a source-grounded draft** expander before the human export decision. It uses the locally validated `moonshotai/Kimi-K3` model and previews one requirement's standard/version, citation locator, excerpt-character count, model, completion limit, and retry boundary. The analyst must check a plain-language approval statement and press the send button before the app reads the ignored local `.env` file and calls Token Factory. A validated draft remains in browser-session memory and is included in the Word package only after the reviewer separately approves the complete visible package for export.
 
 ## Milestone 1: Python foundation
 
@@ -181,7 +184,24 @@ uv run pytest tests/test_case_persistence.py
 
 ## Milestone 13C: local review screens
 
-The Streamlit page now uses two safe local workspaces: **Start a review** and **Review package**. The optional click-triggered tour explains upload, choice, review, and human decision before intake. The review package uses expandable sections for source, controls, evidence/baseline, findings/remediation, traceability, and an approve/edit/reject preview. The preview is in memory only and cannot save, export, or create a workflow.
+The Streamlit page uses two safe local workspaces: **Start a review** and **Review package**. The optional click-triggered tour explains upload, review, and human decision before intake. The review package uses expandable sections for cited sources, draft controls/remediation, optional Token Factory enhancement, and an approve/edit/reject decision. Approval creates a genuine `.docx` in memory for direct download or optional email delivery; it does not save a case, create a workflow, declare compliance, or write to an operational system.
+
+## Approval-gated Word download and email delivery
+
+Package approval has one narrow meaning: **the reviewer authorizes creation of a draft-review document from the exact content they reviewed**. The user can download that approved document directly. Downloading does not send a message. The separate email form shows the recipient, attachment name and size, and standard; the user must explicitly authorize that external send.
+
+The Word package contains:
+
+- review scope and objective;
+- requirement identifiers and approved-local source excerpts with provenance;
+- draft control objectives, activities, owners, frequency, procedures, evidence expectations, testing, assumptions, and tailoring questions;
+- ordered remediation actions, decisions, owners, and expected end states;
+- an optional, separately labeled Token Factory draft when the user generated it before approval;
+- reviewer role, rationale, timestamp, and safety boundaries.
+
+Choosing **Needs editing** or **Reject** creates no document. If the underlying package or model result changes after approval, both download and email delivery are blocked until the reviewer makes a new decision. Tests use an injected fake transport and never send real email.
+
+Configure SMTP only in the ignored `.env` file (or deployment environment): `NCI_SMTP_HOST`, `NCI_SMTP_PORT`, `NCI_SMTP_USERNAME`, `NCI_SMTP_PASSWORD`, and `NCI_SMTP_FROM_ADDRESS`. Optional values are `NCI_SMTP_USE_STARTTLS` and `NCI_SMTP_TIMEOUT_SECONDS`. Never commit credentials.
 
 ```powershell
 uv run streamlit run app.py
@@ -196,3 +216,19 @@ uv run pytest tests/test_dashboard.py
 uv run python -m nerc_compliance_intelligence.evaluations
 uv run pytest tests/test_evaluations.py
 ```
+
+## Requirement-aware local drafting
+
+The default draft generator is offline and deterministic, but it is no longer a generic ID-only template. For each requirement, CIP Wayfinder combines the locally retrieved source pages and recognizes the requirement area, such as Configuration Change Management, Security Patch Management, Ports and Services, or Vulnerability Assessments. It uses that local wording to create more specific draft activities, owners, timing, retained records, escalation, and remediation steps. Every draft remains source-cited, organization-tailored guidance—not a compliance determination.
+
+## MVP caching policy
+
+CIP Wayfinder uses three intentionally different caching layers:
+
+1. The approved local NERC SQLite corpus is the persistent source layer. It is opened read-only by the Streamlit review screen and is not a model-response cache.
+2. Public-source-derived review packages use a bounded Streamlit data cache (maximum 32 entries). The key changes when the uploaded public document hash, parsed standard/requirements, local corpus file revision, or cache-policy version changes.
+3. A validated optional model draft is cached only in the current browser session. Reuse requires the same provider, model, prompt, structured request, source excerpt, and output-schema version. The user must still check the approval box and press Send; on an exact hit, the app reports that no external call was made.
+
+Raw uploaded PDF bytes, credentials, approval state, confidential evidence, and operational data are never placed in the shared cache. Semantic or approximate matching is intentionally excluded from this MVP because a similar-looking compliance question may require a different answer. LangGraph checkpoints are workflow state, not a substitute for these caches.
+
+Caching is intentionally transparent in the product UI. Automated tests verify package-key invalidation, while an exact Token Factory session-cache hit is reported directly in the model-enhancement section when it prevents another external call.

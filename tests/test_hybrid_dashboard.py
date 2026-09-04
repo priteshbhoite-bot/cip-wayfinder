@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pypdf import PdfWriter
 
-from nerc_compliance_intelligence.app import ANALYSIS_OPTIONS, SCREEN_NAMES, uploaded_dashboard_data
+from nerc_compliance_intelligence.app import SCREEN_NAMES, _requirement_source_line, _requirement_vital_summary, uploaded_dashboard_data
 from nerc_compliance_intelligence.local_corpus import (
     CorpusMetadata,
     LocalCorpusDocument,
@@ -36,7 +36,8 @@ def test_uploaded_document_populates_chat_options_and_detail_views() -> None:
     dashboard = uploaded_dashboard_data(uploaded)
 
     assert SCREEN_NAMES == ("Start a review", "Review package")
-    assert "Create draft controls" in ANALYSIS_OPTIONS
+    assert "evidence" not in dashboard
+    assert "baseline" not in dashboard
     assert dashboard["uploaded"].file_name == "CIP-007-6.pdf"
     assert dashboard["mapping"].standard.standard_id == "CIP-007"
     assert dashboard["control"].objective.requirement_ids == ["Document overview"]
@@ -83,7 +84,7 @@ def test_review_package_uses_matching_read_only_local_source_chunks(tmp_path: Pa
     writable_store.ingest_document(
         LocalCorpusDocument(
             source_id="local-cip-010-5",
-            chunks=[RequirementChunk(chunk_id="cip-010-r1-page-7", text="Locally indexed requirement source text for R1.", metadata=metadata)],
+            chunks=[RequirementChunk(chunk_id="cip-010-r1-page-7", text="Locally indexed\n\nrequirement   source text for R1.", metadata=metadata)],
         ),
         content_hash="b" * 64,
     )
@@ -100,5 +101,22 @@ def test_review_package_uses_matching_read_only_local_source_chunks(tmp_path: Pa
 
     assert dashboard["local_source_match_count"] == 1
     assert dashboard["packages"][0]["mapping"].source_locator == "page 7, section Requirements and Measures"
-    assert dashboard["packages"][0]["source_chunks"][0].text == "Locally indexed requirement source text for R1."
-    assert "CIP-010-5 R1" in dashboard["packages"][0]["control"].title.text
+    source_chunks = dashboard["packages"][0]["source_chunks"]
+    assert source_chunks[0].text == "Locally indexed\n\nrequirement   source text for R1."
+    assert _requirement_source_line(source_chunks) == "Source: page 7, Requirements and Measures | retrieved 2026-08-30"
+    control = dashboard["packages"][0]["control"]
+    summary = _requirement_vital_summary(control)
+    assert "CIP-010-5 R1" in control.title.text
+    assert "**Purpose:**" in summary
+    assert "**Key activity:**" in summary
+    assert "**Timing:**" in summary
+    assert "**Typical owner:**" in summary
+    assert "**Evidence to retain:**" in summary
+    assert source_chunks[0].text not in summary
+
+
+def test_uploaded_dashboard_serializes_standard_at_the_retrieval_boundary() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    app_source = (project_root / "src" / "nerc_compliance_intelligence" / "app.py").read_text(encoding="utf-8")
+
+    assert "standard=uploaded_standard.standard.model_dump()" in app_source

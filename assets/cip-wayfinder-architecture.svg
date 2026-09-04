@@ -1,84 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-labelledby="title description">
-  <title id="title">CIP Wayfinder architecture</title>
-  <desc id="description">A local source-grounded review application with a Streamlit interface, local documents, a LangGraph workflow, bounded recovery, human approval, guarded export, and consented case storage.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920" role="img" aria-labelledby="title description">
+  <title id="title">CIP Wayfinder current architecture</title>
+  <desc id="description">Local source-grounded review architecture with human approval and separate download and email delivery paths.</desc>
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#52616B"/></marker>
-    <marker id="green-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#0A845F"/></marker>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3 z" fill="#52616B"/></marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3 z" fill="#0A845F"/></marker>
     <style>
-      .heading { font: 700 33px Arial, sans-serif; fill: #102A43; }
-      .subheading { font: 400 17px Arial, sans-serif; fill: #52616B; }
-      .label { font: 700 18px Arial, sans-serif; fill: #102A43; }
-      .small { font: 400 15px Arial, sans-serif; fill: #334E68; }
-      .micro { font: 400 13px Arial, sans-serif; fill: #52616B; }
-      .line { fill: none; stroke: #52616B; stroke-width: 2.5; marker-end: url(#arrow); }
-      .dashed { fill: none; stroke: #B85C00; stroke-width: 2.5; stroke-dasharray: 8 7; marker-end: url(#arrow); }
-      .green { fill: none; stroke: #0A845F; stroke-width: 3; marker-end: url(#green-arrow); }
+      .title{font:700 34px Arial,sans-serif;fill:#102A43}.subtitle{font:400 17px Arial,sans-serif;fill:#52616B}
+      .name{font:700 18px Arial,sans-serif;fill:#102A43}.detail{font:400 14px Arial,sans-serif;fill:#334E68}.note{font:400 13px Arial,sans-serif;fill:#52616B}
+      .line{fill:none;stroke:#52616B;stroke-width:2.5;marker-end:url(#arrow)}.green{fill:none;stroke:#0A845F;stroke-width:3;marker-end:url(#greenArrow)}
+      .dash{fill:none;stroke:#B85C00;stroke-width:2.5;stroke-dasharray:8 7;marker-end:url(#arrow)}
     </style>
   </defs>
-  <rect width="1600" height="940" fill="#F9FBFC"/>
-  <text x="70" y="62" class="heading">CIP Wayfinder architecture</text>
-  <text x="70" y="91" class="subheading">Local, source-grounded CIP review with explicit human control over every write.</text>
+  <rect width="1600" height="920" fill="#F9FBFC"/>
+  <text x="65" y="58" class="title">CIP Wayfinder architecture</text>
+  <text x="65" y="88" class="subtitle">Local, source-grounded review with explicit human control over package delivery.</text>
 
-  <rect x="70" y="145" width="205" height="86" rx="14" fill="#FFFFFF" stroke="#B7D2DB" stroke-width="2"/>
-  <text x="172" y="180" text-anchor="middle" class="label">Compliance analyst</text>
-  <text x="172" y="207" text-anchor="middle" class="small">provides review scope</text>
+  <rect x="65" y="145" width="215" height="92" rx="14" fill="#FFFFFF" stroke="#B7D2DB" stroke-width="2"/>
+  <text x="173" y="181" text-anchor="middle" class="name">Compliance analyst</text><text x="173" y="207" text-anchor="middle" class="detail">provides review scope</text>
+  <rect x="350" y="135" width="270" height="112" rx="16" fill="#E1F2F7" stroke="#006C8F" stroke-width="3"/>
+  <text x="485" y="177" text-anchor="middle" class="name">CIP Wayfinder</text><text x="485" y="204" text-anchor="middle" class="detail">Streamlit interface</text>
+  <path d="M280 191 H350" class="line"/>
 
-  <rect x="360" y="135" width="300" height="105" rx="16" fill="#E1F2F7" stroke="#006C8F" stroke-width="3"/>
-  <text x="510" y="176" text-anchor="middle" class="label">CIP Wayfinder</text>
-  <text x="510" y="202" text-anchor="middle" class="small">Streamlit interface</text>
-  <path d="M275 188 H360" class="line"/>
+  <rect x="710" y="125" width="275" height="116" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
+  <text x="848" y="164" text-anchor="middle" class="name">Typed case intake</text><text x="848" y="191" text-anchor="middle" class="detail">entity · region · asset scope</text><text x="848" y="215" text-anchor="middle" class="detail">review objective</text>
+  <rect x="710" y="285" width="275" height="116" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
+  <text x="848" y="325" text-anchor="middle" class="name">Authorized public PDF</text><text x="848" y="352" text-anchor="middle" class="detail">browser-session memory</text><text x="848" y="376" text-anchor="middle" class="note">not persisted or transmitted</text>
+  <path d="M620 171 H710" class="line"/><path d="M620 211 C665 211 665 343 710 343" class="line"/>
 
-  <rect x="785" y="133" width="275" height="108" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
-  <text x="922" y="170" text-anchor="middle" class="label">Typed case intake</text>
-  <text x="922" y="196" text-anchor="middle" class="small">entity · jurisdiction · asset</text>
-  <text x="922" y="216" text-anchor="middle" class="small">scope · review objective</text>
-  <path d="M660 175 H785" class="line"/>
+  <rect x="1130" y="180" width="330" height="122" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
+  <text x="1295" y="221" text-anchor="middle" class="name">Approved local corpus</text><text x="1295" y="248" text-anchor="middle" class="detail">SQLite read-only retrieval</text><text x="1295" y="273" text-anchor="middle" class="note">requirement text + citation metadata</text>
+  <path d="M985 183 H1055 V241 H1130" class="line"/>
 
-  <rect x="785" y="282" width="275" height="100" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
-  <text x="922" y="319" text-anchor="middle" class="label">Authorized public PDF</text>
-  <text x="922" y="345" text-anchor="middle" class="small">browser-session memory</text>
-  <text x="922" y="365" text-anchor="middle" class="micro">not persisted or transmitted</text>
-  <path d="M660 205 C720 205 720 332 785 332" class="line"/>
+  <rect x="470" y="475" width="620" height="142" rx="18" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
+  <text x="780" y="518" text-anchor="middle" class="name">LangGraph review workflow</text><text x="780" y="546" text-anchor="middle" class="detail">typed state · in-memory checkpoint · bounded recovery</text>
+  <text x="780" y="576" text-anchor="middle" class="detail">retrieve → summarize → draft controls → validate → hand off</text>
+  <path d="M848 401 V475" class="line"/><path d="M1295 302 V420 H1040 V475" class="line"/>
 
-  <rect x="1175" y="132" width="310" height="110" rx="14" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
-  <text x="1330" y="169" text-anchor="middle" class="label">Approved local corpus</text>
-  <text x="1330" y="195" text-anchor="middle" class="small">SQLite read-only retrieval</text>
-  <text x="1330" y="215" text-anchor="middle" class="micro">source, page, section, URL, date</text>
-  <path d="M1060 332 C1125 332 1110 187 1175 187" class="line"/>
+  <rect x="75" y="475" width="260" height="88" rx="14" fill="#FFF0E0" stroke="#B85C00" stroke-width="2"/>
+  <text x="205" y="509" text-anchor="middle" class="name">Bounded recovery</text><text x="205" y="536" text-anchor="middle" class="detail">retry ≤ 2 · repair ≤ 1</text>
+  <path d="M470 515 H335" class="dash"/><path d="M335 548 C390 610 430 596 470 568" class="dash"/>
 
-  <rect x="530" y="465" width="540" height="125" rx="18" fill="#ECEEFA" stroke="#4F5D95" stroke-width="3"/>
-  <text x="800" y="507" text-anchor="middle" class="label">LangGraph review workflow</text>
-  <text x="800" y="534" text-anchor="middle" class="small">thread ID + in-memory checkpointer</text>
-  <text x="800" y="560" text-anchor="middle" class="small">requirement and citation → controls → evidence → baseline → risk → remediation</text>
-  <path d="M922 241 V465" class="line"/>
-  <path d="M1330 242 C1330 430 1068 450 1070 510" class="line"/>
+  <rect x="505" y="705" width="280" height="100" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="645" y="743" text-anchor="middle" class="name">Human package decision</text><text x="645" y="771" text-anchor="middle" class="detail">approve · edit · reject</text>
+  <path d="M780 617 V665 H645 V705" class="green"/>
+  <rect x="875" y="705" width="270" height="100" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="1010" y="743" text-anchor="middle" class="name">Approved Word package</text><text x="1010" y="771" text-anchor="middle" class="detail">created in memory</text>
+  <path d="M785 755 H875" class="green"/>
 
-  <rect x="115" y="465" width="255" height="84" rx="13" fill="#FFF0E0" stroke="#B85C00" stroke-width="2"/>
-  <text x="242" y="497" text-anchor="middle" class="label">Bounded recovery</text>
-  <text x="242" y="522" text-anchor="middle" class="small">retry ≤ 2 · repair ≤ 1</text>
-  <path d="M530 510 C470 510 430 507 370 507" class="dashed"/>
-  <path d="M370 533 C440 610 494 585 530 555" class="dashed"/>
+  <rect x="1235" y="640" width="285" height="92" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="1378" y="676" text-anchor="middle" class="name">Direct download</text><text x="1378" y="703" text-anchor="middle" class="detail">local .docx delivery</text>
+  <rect x="1235" y="790" width="285" height="104" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
+  <text x="1378" y="827" text-anchor="middle" class="name">Email delivery</text><text x="1378" y="854" text-anchor="middle" class="detail">recipient + separate consent</text><text x="1378" y="878" text-anchor="middle" class="note">configured SMTP only</text>
+  <path d="M1145 755 H1185 V686 H1235" class="green"/><path d="M1145 755 H1185 V842 H1235" class="green"/>
 
-  <rect x="615" y="685" width="250" height="95" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
-  <text x="740" y="721" text-anchor="middle" class="label">Human approval interrupt</text>
-  <text x="740" y="748" text-anchor="middle" class="small">approve · edit · reject</text>
-  <path d="M800 590 V685" class="green"/>
+  <rect x="75" y="705" width="285" height="100" rx="14" fill="#FCE8E6" stroke="#B42318" stroke-width="2"/>
+  <text x="218" y="743" text-anchor="middle" class="name">Safe stop</text><text x="218" y="771" text-anchor="middle" class="detail">no package on reject or error</text>
+  <path d="M505 755 H360" class="line"/>
 
-  <rect x="1065" y="685" width="240" height="95" rx="14" fill="#E2F4ED" stroke="#0A845F" stroke-width="3"/>
-  <text x="1185" y="721" text-anchor="middle" class="label">Guarded local export</text>
-  <text x="1185" y="748" text-anchor="middle" class="small">approved synthetic output</text>
-  <path d="M865 733 H1065" class="green"/>
-  <text x="960" y="716" text-anchor="middle" class="micro">explicit approval only</text>
-
-  <rect x="111" y="695" width="290" height="82" rx="13" fill="#FCE8E6" stroke="#B42318" stroke-width="2"/>
-  <text x="256" y="727" text-anchor="middle" class="label">Safe stop</text>
-  <text x="256" y="752" text-anchor="middle" class="small">no export on reject or error</text>
-  <path d="M615 742 C550 742 500 737 401 737" class="line"/>
-  <path d="M740 780 C680 835 495 815 401 767" class="line"/>
-
-  <rect x="1140" y="835" width="300" height="72" rx="13" fill="#E1F2F7" stroke="#006C8F" stroke-width="2"/>
-  <text x="1290" y="864" text-anchor="middle" class="label">Local SQLite case store</text>
-  <text x="1290" y="887" text-anchor="middle" class="small">separate save consent · resume by thread ID</text>
-  <path d="M660 222 C900 850 1035 871 1140 871" class="dashed"/>
-  <text x="870" y="834" text-anchor="middle" class="micro">separate explicit save approval</text>
+  <text x="65" y="900" class="subtitle">Safety boundary: summaries and drafts require source verification and human review; no automated compliance determination is made.</text>
 </svg>
