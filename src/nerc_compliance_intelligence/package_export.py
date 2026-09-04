@@ -18,7 +18,6 @@ from docx.shared import Inches, Pt, RGBColor
 from pydantic import BaseModel, ConfigDict, Field
 
 from nerc_compliance_intelligence.case_intake import CaseIntakeAssessment
-from nerc_compliance_intelligence.control_remediation import ControlGenerationOutput
 
 
 WORD_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -82,19 +81,6 @@ class ExportRequirementPackage(BaseModel):
     remediation_steps: list[ExportRemediationStep]
 
 
-class ExportModelDraft(BaseModel):
-    """Optional Token Factory content preserved separately from local drafts."""
-
-    model_name: str
-    requirement_reference: str
-    objective: str
-    control_type: str
-    owner_role: str
-    procedure: str
-    evidence_expectation: str
-    remediation_steps: list[ExportRemediationStep]
-
-
 class ReviewPackageExport(BaseModel):
     """Complete typed content used to build the Word package."""
 
@@ -107,7 +93,6 @@ class ReviewPackageExport(BaseModel):
     asset_scope: list[str]
     review_objective: str
     requirements: list[ExportRequirementPackage] = Field(min_length=1)
-    model_draft: ExportModelDraft | None = None
     export_decision: ExportDecision
 
 
@@ -133,8 +118,6 @@ def build_review_package_export(
     data: dict[str, Any],
     assessment: CaseIntakeAssessment | None,
     export_decision: ExportDecision,
-    model_result: ControlGenerationOutput | None = None,
-    model_summary: dict[str, Any] | None = None,
 ) -> ReviewPackageExport:
     """Convert the reviewed Streamlit package into a strict export contract."""
     uploaded = data["uploaded"]
@@ -186,19 +169,6 @@ def build_review_package_export(
         )
 
     intake = assessment.intake if isinstance(assessment, CaseIntakeAssessment) else None
-    exported_model: ExportModelDraft | None = None
-    if model_result is not None and isinstance(model_summary, dict):
-        exported_model = ExportModelDraft(
-            model_name=_clean_text(model_summary.get("model", "Token Factory model")),
-            requirement_reference=_clean_text(model_summary.get("requirement_reference", "Not recorded")),
-            objective=_clean_text(model_result.control.objective.text),
-            control_type=_clean_text(model_result.control.control_type.text),
-            owner_role=_clean_text(model_result.control.owner_role.text),
-            procedure=_clean_text(model_result.control.procedure.text),
-            evidence_expectation=_clean_text(model_result.control.evidence_expectation.text),
-            remediation_steps=_export_remediation_steps(model_result.remediation_plan),
-        )
-
     return ReviewPackageExport(
         source_file_name=_clean_text(uploaded.file_name),
         standard_version=f"{uploaded.standard.standard_id}-{uploaded.standard.version}",
@@ -207,7 +177,6 @@ def build_review_package_export(
         asset_scope=list(intake.asset_scope) if intake else ["Not recorded"],
         review_objective=_clean_text(intake.review_objective) if intake and intake.review_objective else "Not recorded",
         requirements=requirement_packages,
-        model_draft=exported_model,
         export_decision=export_decision,
     )
 
@@ -462,28 +431,6 @@ def _add_requirement_detail(document: WordDocument, item: ExportRequirementPacka
         _add_labeled_paragraph(document, "Expected end state", step.end_state, after=10)
 
 
-def _add_model_draft(document: WordDocument, model_draft: ExportModelDraft) -> None:
-    document.add_heading("Optional Token Factory enhanced draft", level=1)
-    _add_callout(
-        document,
-        "Separate model-generated content",
-        "This section was generated from one approved public requirement excerpt and validated for traceability. It remains a draft and does not replace human review.",
-    )
-    _add_labeled_paragraph(document, "Model", model_draft.model_name)
-    _add_labeled_paragraph(document, "Requirement", model_draft.requirement_reference)
-    _add_labeled_paragraph(document, "Objective", model_draft.objective)
-    _add_labeled_paragraph(document, "Control type", model_draft.control_type)
-    _add_labeled_paragraph(document, "Owner role", model_draft.owner_role)
-    _add_labeled_paragraph(document, "Procedure", model_draft.procedure)
-    _add_labeled_paragraph(document, "Evidence expectation", model_draft.evidence_expectation)
-    document.add_heading("Model-drafted remediation", level=2)
-    for step in model_draft.remediation_steps:
-        _add_labeled_paragraph(document, f"Step {step.step_number}", step.action)
-        _add_labeled_paragraph(document, "Owner role", step.owner_role)
-        _add_labeled_paragraph(document, "Decision point", step.decision)
-        _add_labeled_paragraph(document, "Expected end state", step.end_state, after=10)
-
-
 def render_review_package_docx(package: ReviewPackageExport) -> bytes:
     """Render a polished Word package entirely in memory after human approval."""
     document = Document()
@@ -512,9 +459,6 @@ def render_review_package_docx(package: ReviewPackageExport) -> bytes:
     document.add_heading("Requirements, sources, controls, and remediation", level=1)
     for requirement in package.requirements:
         _add_requirement_detail(document, requirement)
-
-    if package.model_draft is not None:
-        _add_model_draft(document, package.model_draft)
 
     document.add_heading("Human package decision", level=1)
     _add_labeled_paragraph(document, "Decision", "Approved for download or email delivery")

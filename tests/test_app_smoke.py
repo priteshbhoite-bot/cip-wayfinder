@@ -9,6 +9,6 @@ def test_page_status_reports_fake_local_safety_boundary() -> None:
 
     assert status == {
         "environment": "test",
-        "provider_mode": "local deterministic default; Kimi-K3 is approval-gated",
+        "provider_mode": "local deterministic workflow",
         "operational_writes": "disabled",
     }

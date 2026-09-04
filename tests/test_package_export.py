@@ -7,7 +7,6 @@ from zipfile import ZipFile
 from docx import Document
 
 from nerc_compliance_intelligence.app import demo_dashboard_data
-from nerc_compliance_intelligence.control_remediation import ControlGenerationOutput
 from nerc_compliance_intelligence.package_export import ExportDecision, build_review_package_export, render_review_package_docx
 
 
@@ -38,7 +37,6 @@ def test_build_review_package_preserves_requirements_and_draft_boundary() -> Non
     assert package.requirements[0].requirement_reference == "Document overview"
     assert package.requirements[0].sources[0].verified_local_match is False
     assert package.export_decision.decision == "approve"
-    assert package.model_draft is None
 
 
 def test_render_review_package_creates_a_valid_word_file() -> None:
@@ -57,27 +55,3 @@ def test_render_review_package_creates_a_valid_word_file() -> None:
     assert "not a compliance determination" in text.lower()
     assert "CIP compliance manager" in text
     assert "Human package decision" in text
-
-
-def test_optional_model_draft_is_labeled_and_included() -> None:
-    data = demo_dashboard_data()
-    model_result = ControlGenerationOutput(
-        control=data["control"],
-        remediation_plan=data["remediation"],
-    )
-    package = build_review_package_export(
-        data,
-        None,
-        _decision(),
-        model_result,
-        {
-            "model": "moonshotai/Kimi-K3",
-            "requirement_reference": data["mapping"].requirement_reference,
-        },
-    )
-
-    assert package.model_draft is not None
-    text = _document_text(render_review_package_docx(package))
-    assert "Optional Token Factory enhanced draft" in text
-    assert "moonshotai/Kimi-K3" in text
-    assert "Separate model-generated content" in text

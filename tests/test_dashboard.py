@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from nerc_compliance_intelligence.app import APP_DESCRIPTION, LANDING_FIELD_HELP, LANDING_HIGHLIGHTS, REFERENCE_OPTIONS, REVIEW_GRAPH_STEPS, SCREEN_NAMES, _model_draft_candidate, demo_dashboard_data
+from nerc_compliance_intelligence.app import APP_DESCRIPTION, LANDING_FIELD_HELP, LANDING_HIGHLIGHTS, REFERENCE_OPTIONS, REVIEW_GRAPH_STEPS, SCREEN_NAMES, demo_dashboard_data
 
 
 def test_dashboard_has_two_simple_workspaces_after_local_upload() -> None:
@@ -79,12 +79,6 @@ def test_app_description_explains_the_single_standard_review_boundary() -> None:
     assert "human review" in description
 
 
-def test_model_draft_candidate_requires_a_matched_requirement_level_source() -> None:
-    dashboard = demo_dashboard_data()
-
-    assert _model_draft_candidate(dashboard) is None
-
-
 def test_review_package_contains_only_product_facing_sections() -> None:
     project_root = Path(__file__).resolve().parents[1]
     app_source = (project_root / "src" / "nerc_compliance_intelligence" / "app.py").read_text(encoding="utf-8")
@@ -92,7 +86,6 @@ def test_review_package_contains_only_product_facing_sections() -> None:
     for section_name in (
         "Requirements and sources",
         "Draft controls and remediation",
-        "Optional model enhancement",
         "Human decision",
         "Approve package",
         "Download approved Word package",
@@ -101,6 +94,8 @@ def test_review_package_contains_only_product_facing_sections() -> None:
     ):
         assert section_name in app_source
     assert "Advanced demo details" not in app_source
+    assert "Optional model enhancement" not in app_source
+    assert "_render_model_draft_review" not in app_source
     assert "Show graph path" not in app_source
     assert "st.download_button" in app_source
     assert "mime=WORD_MIME_TYPE" in app_source
@@ -132,7 +127,6 @@ def test_review_package_sections_and_requirement_details_start_collapsed() -> No
     for section_name in (
         "Requirements and sources",
         "Draft controls and remediation",
-        "Optional model enhancement",
         "Human decision",
     ):
         assert f'st.expander("{section_name}", expanded=False' in app_source

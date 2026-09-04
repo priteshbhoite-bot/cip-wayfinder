@@ -6,32 +6,43 @@ invalidation rules can be tested without starting the application.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from hashlib import sha256
 import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from nerc_compliance_intelligence.providers import ProviderSettings, StructuredRequest
 from nerc_compliance_intelligence.uploaded_standard import UploadedStandard
 
 
 CACHE_POLICY_VERSION = "mvp-cache-v1"
 DASHBOARD_CACHE_MAX_ENTRIES = 32
-MODEL_OUTPUT_SCHEMA_VERSION = "control-generation-output-v1"
 
 
 class CacheMetrics(BaseModel):
-    """Safe, per-browser-session counters shown in developer details."""
+    """Safe, per-browser-session counters for the derived package cache."""
 
     model_config = ConfigDict(extra="forbid")
 
     dashboard_hits: int = Field(default=0, ge=0)
     dashboard_misses: int = Field(default=0, ge=0)
-    model_hits: int = Field(default=0, ge=0)
-    model_misses: int = Field(default=0, ge=0)
-    avoided_model_calls: int = Field(default=0, ge=0)
+
+
+def migrate_cache_metrics(value: object) -> CacheMetrics:
+    """Keep current counters while dropping fields from an older browser session."""
+    if not isinstance(value, Mapping):
+        return CacheMetrics()
+    current_fields = {
+        field_name: value[field_name]
+        for field_name in CacheMetrics.model_fields
+        if field_name in value
+    }
+    try:
+        return CacheMetrics.model_validate(current_fields)
+    except ValidationError:
+        return CacheMetrics()
 
 
 def stable_fingerprint(namespace: str, payload: Any) -> str:
@@ -75,24 +86,5 @@ def dashboard_cache_key(uploaded: UploadedStandard, corpus_path: Path) -> str:
             "standard": uploaded.standard.model_dump(mode="json"),
             "requirements": [item.model_dump(mode="json") for item in uploaded.requirements],
             "corpus_revision": file_revision(corpus_path),
-        },
-    )
-
-
-def model_result_cache_key(
-    request: StructuredRequest,
-    settings: ProviderSettings,
-    provider_endpoint: str = "",
-) -> str:
-    """Key one exact approved request without including credentials in the key."""
-    return stable_fingerprint(
-        "model-result",
-        {
-            "policy_version": CACHE_POLICY_VERSION,
-            "schema_version": MODEL_OUTPUT_SCHEMA_VERSION,
-            "provider": settings.provider,
-            "model": settings.model,
-            "provider_endpoint": provider_endpoint,
-            "request": request.model_dump(mode="json"),
         },
     )

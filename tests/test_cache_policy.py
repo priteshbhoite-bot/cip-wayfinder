@@ -2,19 +2,9 @@
 
 from pathlib import Path
 
-from nerc_compliance_intelligence.cache_policy import CACHE_POLICY_VERSION, dashboard_cache_key, file_revision, model_result_cache_key, stable_fingerprint
-from nerc_compliance_intelligence.providers import ProviderSettings, StructuredRequest
+from nerc_compliance_intelligence.cache_policy import dashboard_cache_key, file_revision, migrate_cache_metrics, stable_fingerprint
 from nerc_compliance_intelligence.schemas import StandardVersion
 from nerc_compliance_intelligence.uploaded_standard import UploadedRequirementOption, UploadedStandard
-
-
-def _request(prompt: str = "Use only the supplied source.") -> StructuredRequest:
-    return StructuredRequest(
-        operation="draft",
-        system_prompt=prompt,
-        input_payload={"requirement": "R1", "source": "public excerpt"},
-        response_schema_name="ControlGenerationOutput",
-    )
 
 
 def test_stable_fingerprint_is_order_independent_and_opaque() -> None:
@@ -26,16 +16,24 @@ def test_stable_fingerprint_is_order_independent_and_opaque() -> None:
     assert "test" not in first
 
 
-def test_model_cache_key_changes_with_prompt_or_model() -> None:
-    settings = ProviderSettings(provider="nebius", model="model-a")
-    same_key = model_result_cache_key(_request(), settings)
+def test_cache_metrics_migration_drops_removed_model_counters() -> None:
+    metrics = migrate_cache_metrics(
+        {
+            "dashboard_hits": 4,
+            "dashboard_misses": 2,
+            "model_hits": 0,
+            "model_misses": 0,
+            "avoided_model_calls": 0,
+        }
+    )
 
-    assert same_key == model_result_cache_key(_request(), settings)
-    assert same_key != model_result_cache_key(_request("A changed prompt."), settings)
-    assert same_key != model_result_cache_key(_request(), settings.model_copy(update={"model": "model-b"}))
-    assert same_key != model_result_cache_key(_request(), settings, "https://another-endpoint.example/v1")
-    assert CACHE_POLICY_VERSION not in same_key
-    assert "public excerpt" not in same_key
+    assert metrics.model_dump() == {"dashboard_hits": 4, "dashboard_misses": 2}
+
+
+def test_cache_metrics_migration_resets_invalid_current_counters() -> None:
+    metrics = migrate_cache_metrics({"dashboard_hits": -1, "dashboard_misses": "invalid"})
+
+    assert metrics.model_dump() == {"dashboard_hits": 0, "dashboard_misses": 0}
 
 
 def test_file_revision_changes_when_local_file_changes(tmp_path: Path) -> None:

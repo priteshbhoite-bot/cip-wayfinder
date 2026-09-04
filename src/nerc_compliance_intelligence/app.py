@@ -11,14 +11,14 @@ import streamlit as st
 from pydantic import ValidationError
 
 from nerc_compliance_intelligence.case_intake import CaseIntake, CaseIntakeAssessment, assess_case_intake
-from nerc_compliance_intelligence.cache_policy import CACHE_POLICY_VERSION, DASHBOARD_CACHE_MAX_ENTRIES, CacheMetrics, dashboard_cache_key, file_revision, model_result_cache_key, stable_fingerprint
+from nerc_compliance_intelligence.cache_policy import CACHE_POLICY_VERSION, DASHBOARD_CACHE_MAX_ENTRIES, CacheMetrics, dashboard_cache_key, file_revision, migrate_cache_metrics, stable_fingerprint
 from nerc_compliance_intelligence.config import AppSettings, load_settings
-from nerc_compliance_intelligence.control_remediation import ControlGenerationInput, ControlGenerationOutput, build_source_grounded_control_draft_request, generate_draft_control_and_remediation, generate_source_grounded_control_draft
+from nerc_compliance_intelligence.control_remediation import ControlGenerationInput, generate_draft_control_and_remediation
 from nerc_compliance_intelligence.local_corpus import LocalCorpusStore, RequirementChunk, RetrievalQuery, chunk_to_mapping
 from nerc_compliance_intelligence.email_delivery import EmailDeliveryError, WordEmailRequest, load_email_delivery_settings, send_word_package_email, validate_email_address
 from nerc_compliance_intelligence.package_export import WORD_MIME_TYPE, ExportDecision, build_review_package_export, render_review_package_docx
 from nerc_compliance_intelligence.reference_options import load_nerc_reference_options
-from nerc_compliance_intelligence.providers import ProviderResponseError, ProviderTemporaryError, ProviderTimeoutError, build_nebius_provider_from_environment, load_local_provider_environment, load_provider_settings
+from nerc_compliance_intelligence.providers import load_local_provider_environment
 from nerc_compliance_intelligence.uploaded_standard import UploadValidationError, UploadedStandard, analyze_uploaded_standard, validate_uploaded_standard
 
 
@@ -27,7 +27,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 APP_LOGO_PATH = PROJECT_ROOT / "assets" / "cip-wayfinder-logo.png"
 APPROVED_CORPUS_INDEX = PROJECT_ROOT / "data" / "approved_nerc_corpus.sqlite"
 LOCAL_DOTENV_PATH = PROJECT_ROOT / ".env"
-MODEL_DRAFT_NAME = "moonshotai/Kimi-K3"
 APP_DESCRIPTION = (
     "CIP Wayfinder helps utility compliance analysts explore one approved local NERC CIP standard at a time.",
     "It organizes cited source material into draft controls and remediation steps for human review.",
@@ -59,7 +58,7 @@ def page_status(settings: AppSettings) -> dict[str, str]:
     """Return display values separately so they can be smoke-tested without Streamlit."""
     return {
         "environment": settings.environment,
-        "provider_mode": "local deterministic default; Kimi-K3 is approval-gated" if settings.provider_mode == "fake" else settings.provider_mode,
+        "provider_mode": "local deterministic workflow" if settings.provider_mode == "fake" else settings.provider_mode,
         "operational_writes": "disabled" if not settings.operational_writes_enabled else "enabled",
     }
 
@@ -149,7 +148,7 @@ def cached_uploaded_dashboard_data(
     """Use the shared data cache and count reuse visible to this browser session."""
     cache_key = dashboard_cache_key(uploaded_standard, corpus_database_path)
     seen_keys = st.session_state.setdefault("seen_dashboard_cache_keys", set())
-    metrics = CacheMetrics.model_validate(st.session_state.setdefault("cache_metrics", {}))
+    metrics = migrate_cache_metrics(st.session_state.get("cache_metrics"))
     if cache_key in seen_keys:
         metrics.dashboard_hits += 1
     else:
@@ -190,11 +189,8 @@ def _initialize_session() -> None:
     st.session_state.setdefault("selected_analysis", None)
     st.session_state.setdefault("last_analysis_choice", None)
     st.session_state.setdefault("case_intake_assessment", None)
-    st.session_state.setdefault("model_draft_result", None)
-    st.session_state.setdefault("model_draft_summary", None)
-    st.session_state.setdefault("model_result_cache", {})
     st.session_state.setdefault("seen_dashboard_cache_keys", set())
-    st.session_state.setdefault("cache_metrics", CacheMetrics().model_dump())
+    st.session_state.cache_metrics = migrate_cache_metrics(st.session_state.get("cache_metrics")).model_dump()
     st.session_state.setdefault("decision_preview", None)
     st.session_state.setdefault("approved_package_bytes", None)
     st.session_state.setdefault("approved_package_file_name", None)
@@ -348,9 +344,6 @@ def _render_chat(uploaded_standard: UploadedStandard) -> None:
         st.session_state.selected_analysis = None
         st.session_state.last_analysis_choice = None
         st.session_state.case_intake_assessment = None
-        st.session_state.model_draft_result = None
-        st.session_state.model_draft_summary = None
-        st.session_state.model_result_cache = {}
         st.session_state.seen_dashboard_cache_keys = set()
         st.session_state.cache_metrics = CacheMetrics().model_dump()
         st.session_state.decision_preview = None
@@ -362,144 +355,14 @@ def _render_chat(uploaded_standard: UploadedStandard) -> None:
         st.rerun()
 
 
-def _model_draft_candidate(data: dict[str, Any]) -> dict[str, Any] | None:
-    """Choose the first matched requirement for one explicitly approved model call."""
-    return next(
-        (
-            package
-            for package in data["packages"]
-            if package["source_chunks"] and package["mapping"].requirement_reference.startswith("R")
-        ),
-        None,
-    )
-
-
-def _render_model_draft_review(data: dict[str, Any]) -> None:
-    """Preview and run one human-approved source-grounded drafting request."""
-    candidate = _model_draft_candidate(data)
-    with st.expander("Review and send a source-grounded draft", icon=":material/send:"):
-        st.subheader("Review and send")
-        st.caption("This optional step uses the approved Token Factory model only after your explicit approval. It is separate from the local deterministic package.")
-        if candidate is None:
-            st.warning("No requirement-level match in the approved local corpus is available for a model draft.")
-            return
-        source = candidate["source_chunks"][0]
-        mapping = chunk_to_mapping(source, candidate["mapping"].standard.scope_role)
-        generation_input = ControlGenerationInput(
-            retrieved_mappings=[mapping],
-            selected_requirement_ids=[mapping.requirement_reference],
-        )
-        request = build_source_grounded_control_draft_request(generation_input)
-        st.dataframe(
-            [{
-                "model": MODEL_DRAFT_NAME,
-                "standard/version": f"{mapping.standard.standard_id}-{mapping.standard.version}",
-                "requirement": mapping.requirement_reference,
-                "source locator": mapping.source_locator,
-                "excerpt characters sent": len(mapping.draft_summary),
-                "maximum completion tokens": request.max_output_tokens,
-                "reasoning effort": request.reasoning_effort,
-                "retries": "0 (one attempt)",
-            }],
-            hide_index=True,
-        )
-        st.info("The request sends only the displayed requirement's approved public excerpt and citation metadata. It does not send evidence, assets, the uploaded PDF, other requirements, or any operational data.")
-        approved = st.checkbox(
-            f"I approve sending this one {mapping.standard.standard_id}-{mapping.standard.version} {mapping.requirement_reference} excerpt to Token Factory.",
-            key="model_draft_external_approval",
-        )
-        if st.button("Send approved draft request", type="primary", icon=":material/send:"):
-            if not approved:
-                st.error("Check the approval statement before sending a model request.")
-                return
-            provider_environment = load_local_provider_environment(LOCAL_DOTENV_PATH)
-            provider_settings = load_provider_settings(provider_environment).model_copy(update={"model": MODEL_DRAFT_NAME})
-            if provider_settings.provider != "nebius" or not provider_environment.get("NCI_NEBIUS_API_KEY"):
-                st.error("The local Token Factory configuration is not ready. Confirm the provider settings and key in the ignored .env file.")
-                return
-            cache_key = model_result_cache_key(
-                request,
-                provider_settings,
-                provider_environment.get("NCI_NEBIUS_BASE_URL", "https://api.studio.nebius.ai/v1"),
-            )
-            session_cache = st.session_state.setdefault("model_result_cache", {})
-            metrics = CacheMetrics.model_validate(st.session_state.setdefault("cache_metrics", {}))
-            cached_result = session_cache.get(cache_key)
-            if isinstance(cached_result, dict):
-                st.session_state.model_draft_result = ControlGenerationOutput.model_validate_json(cached_result["parsed_output_json"])
-                st.session_state.model_draft_summary = {
-                    "model": cached_result["model"],
-                    "latency_ms": cached_result["latency_ms"],
-                    "requirement_reference": mapping.requirement_reference,
-                    "cache_hit": True,
-                }
-                metrics.model_hits += 1
-                metrics.avoided_model_calls += 1
-                st.session_state.cache_metrics = metrics.model_dump()
-                st.session_state.approved_package_bytes = None
-                st.session_state.approved_package_context_key = None
-                st.session_state.email_delivery_receipt = None
-                st.success("The exact validated draft was reused from this browser session. No external model call was made.")
-            else:
-                metrics.model_misses += 1
-                st.session_state.cache_metrics = metrics.model_dump()
-                try:
-                    with st.status("Sending the approved source-grounded draft request", expanded=True) as status:
-                        result = generate_source_grounded_control_draft(
-                            generation_input,
-                            build_nebius_provider_from_environment(provider_environment),
-                            provider_settings,
-                        )
-                        status.update(label="Draft received and validated", state="complete", expanded=False)
-                except (ProviderResponseError, ProviderTemporaryError, ProviderTimeoutError, ValueError):
-                    st.error("The model did not return a usable draft. No draft was saved; review the request boundary and try again only if you approve another request.")
-                    return
-                session_cache[cache_key] = {
-                    "parsed_output_json": result.parsed_output.model_dump_json(),
-                    "model": result.model,
-                    "latency_ms": result.latency_ms,
-                }
-                st.session_state.model_draft_result = result.parsed_output
-                st.session_state.model_draft_summary = {
-                    "model": result.model,
-                    "latency_ms": result.latency_ms,
-                    "requirement_reference": mapping.requirement_reference,
-                    "cache_hit": False,
-                }
-                st.session_state.approved_package_bytes = None
-                st.session_state.approved_package_context_key = None
-                st.session_state.email_delivery_receipt = None
-                st.success("A source-grounded draft was received, traceability-validated, and kept in this browser session only.")
-        model_result = st.session_state.get("model_draft_result")
-        model_summary = st.session_state.get("model_draft_summary")
-        if model_result is not None and isinstance(model_summary, dict):
-            st.subheader("Validated model draft")
-            result_source = "exact session cache; no call" if model_summary.get("cache_hit") else "approved external model call"
-            st.caption(f"Model: {model_summary['model']} | Latency: {model_summary['latency_ms']} ms | Requirement: {model_summary['requirement_reference']} | Source: {result_source} | Session memory only")
-            st.write("**Objective:**", model_result.control.objective.text)
-            st.write("**Control type:**", model_result.control.control_type.text)
-            st.write("**Owner role:**", model_result.control.owner_role.text)
-            st.write("**Procedure:**", model_result.control.procedure.text)
-            st.write("**Evidence expectation:**", model_result.control.evidence_expectation.text)
-            st.dataframe(
-                [{"step": step.step_number, "action": step.action.text, "decision": step.decision.text, "end state": step.end_state.text} for step in model_result.remediation_plan.steps],
-                hide_index=True,
-            )
-            st.caption("Draft only. An SME must tailor and approve this content before any separate export decision.")
-
-
 def _package_context_key(data: dict[str, Any]) -> str:
-    """Bind approval to the exact local package, intake, and model draft."""
+    """Bind approval to the exact local package and intake."""
     assessment = st.session_state.get("case_intake_assessment")
-    model_result = st.session_state.get("model_draft_result")
-    model_summary = st.session_state.get("model_draft_summary")
     return stable_fingerprint(
         "word-email-context",
         {
             "dashboard_key": dashboard_cache_key(data["uploaded"], APPROVED_CORPUS_INDEX),
             "assessment": assessment.model_dump(mode="json") if isinstance(assessment, CaseIntakeAssessment) else None,
-            "model_result": model_result.model_dump(mode="json") if isinstance(model_result, ControlGenerationOutput) else None,
-            "model_summary": model_summary if isinstance(model_summary, dict) else None,
         },
     )
 
@@ -511,8 +374,6 @@ def _prepare_approved_word_package(
 ) -> None:
     """Create one in-memory Word attachment only after package approval."""
     assessment = st.session_state.get("case_intake_assessment")
-    model_result = st.session_state.get("model_draft_result")
-    model_summary = st.session_state.get("model_draft_summary")
     decision = ExportDecision(
         reviewer_role=reviewer_role,
         rationale=rationale,
@@ -522,8 +383,6 @@ def _prepare_approved_word_package(
         data,
         assessment if isinstance(assessment, CaseIntakeAssessment) else None,
         decision,
-        model_result if isinstance(model_result, ControlGenerationOutput) else None,
-        model_summary if isinstance(model_summary, dict) else None,
     )
     st.session_state.approved_package_bytes = render_review_package_docx(package)
     safe_standard = package.standard_version.lower().replace("-", "_")
@@ -555,7 +414,7 @@ def _requirement_source_line(source_chunks: list[RequirementChunk]) -> str:
 
 
 def _render_review_package(data: dict[str, Any]) -> None:
-    """Show the essential review content in four progressive sections."""
+    """Show the essential review content in three progressive sections."""
     uploaded, packages = data["uploaded"], data["packages"]
     st.subheader("Review package")
     st.caption("Read cited sources, inspect draft guidance, then make a human decision.")
@@ -615,13 +474,9 @@ def _render_review_package(data: dict[str, Any]) -> None:
                 )
         st.warning("Potential gaps and remediation steps are review observations, not compliance conclusions or automatic closures.", icon=":material/person_check:")
 
-    with st.expander("Optional model enhancement", expanded=False, icon=":material/auto_awesome:"):
-        st.caption("If you want Token Factory to enhance one matched requirement, generate and review that draft before approving the final package for download or email delivery.")
-        _render_model_draft_review(data)
-
     with st.expander("Human decision", expanded=False, icon=":material/person_check:"):
         st.write("Make a decision on the draft package you can see above. Approval prepares a Word attachment; it does not send email, declare compliance, or implement a control.")
-        st.info("Token Factory generation, when used, happens before this decision so you can review its output. Word formatting is created locally and does not require another model call.")
+        st.info("Word formatting is created locally from the reviewed package and does not require a model call.")
         with st.form("package_export_decision_form"):
             decision_label = st.segmented_control(
                 "Package decision",
@@ -735,7 +590,7 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     st.caption("Only this masked delivery receipt is kept in browser session memory.")
 
 def render_page() -> None:
-    """Render the local review app with one optional approval-gated model step."""
+    """Render the local review app with approval-gated package delivery."""
     settings = load_settings()
     status = page_status(settings)
     st.set_page_config(page_title=settings.app_name, page_icon=str(APP_LOGO_PATH), layout="wide")

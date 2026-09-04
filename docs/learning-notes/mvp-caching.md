@@ -2,7 +2,7 @@
 
 A cache is a labeled storage box for work the app has already completed. Before doing the work again, the app checks the label. If every important input on the label is the same, it can reuse the result. If one important input changed, it builds a fresh result.
 
-## The three layers
+## The two layers
 
 ### 1. Persistent public-standard source
 
@@ -21,12 +21,6 @@ Its key covers:
 
 The cache holds at most 32 entries. Changing any key input causes a miss and a safe rebuild.
 
-### 3. Exact model-result session cache
-
-An optional external draft can cost money and add latency. After a user explicitly approves a send, the app first checks this browser session for the exact validated result. The key includes the provider, model, full structured request, prompt, public excerpt, and output-schema version. The key itself is a SHA-256 fingerprint, so those inputs are not exposed in cache metrics.
-
-The result is not shared between users and disappears with the browser session or the Clear action. An exact hit still requires the approval checkbox and Send click; it then reports that the provider was not called.
-
 ## Why there is no semantic cache yet
 
 A semantic cache tries to reuse an answer for a merely similar question. That is useful in some chatbots, but risky for compliance work: a changed Functional Entity, version, effective date, or requirement can change the correct guidance. Exact matching is easier to test, explain, and audit.
@@ -41,4 +35,4 @@ A semantic cache tries to reuse an answer for a merely similar question. That is
 
 ## How to verify it
 
-The automated cache-policy tests verify that changing the model, prompt, source, document, or corpus revision produces a new key. In the app, sending the exact same approved model request twice in one session displays a message that the validated result was reused and no external call was made. Package caching stays transparent because it is an implementation detail rather than a review task.
+The automated cache-policy tests verify that changing the document or corpus revision produces a new key. Package caching stays transparent because it is an implementation detail rather than a review task.

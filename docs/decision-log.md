@@ -294,4 +294,12 @@
 
 - Keep the approved Word package in browser-session memory and provide an immediate local download button after package approval.
 - Retain email as an optional, separately authorized external action. SMTP configuration is required only for email delivery, not for download.
-- Require a new package decision whenever the intake, source corpus, local draft, or optional model result changes.
+- Require a new package decision whenever the intake, source corpus, or local draft changes.
+
+## 2026-09-04 — Remove optional model enhancement from the product
+
+- Remove the Optional model enhancement section and its secondary transmission approval from the Review package page to keep the analyst workflow focused.
+- Remove model-result session state, caching, approval invalidation, and model-generated content from the Word export contract.
+- Keep the structured-provider seam and fake-provider tests as disconnected learning code; the Streamlit product now makes no external model request.
+- Keep package approval and optional SMTP email authorization as the two visible human gates.
+- Migrate cache counters stored by an already-open browser session by retaining current dashboard counters and dropping the removed model counters on the next rerun.
