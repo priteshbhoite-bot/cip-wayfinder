@@ -16,18 +16,15 @@ This is a local demonstration system, not a compliance determination, legal opin
 
 **Assumption:** Northstar Grid Services is a fictional registered entity. Its users, asset inventory, evidence process, ownership roles, risk thresholds, and remediation procedures are fictional for this project.
 
-## 3. Standards and version boundary
+## 3. Standards and document boundary
 
-The MVP has exactly two standard identifiers in scope:
+`CIP-010-5` remains the primary assignment demonstration and `CIP-007-6` remains the supporting example, but the upload capability now recognizes all current NERC Reliability Standard families: BAL, CIP, COM, EOP, FAC, INT, IRO, MOD, NUC, PER, PRC, TOP, TPL, and VAR. It supports decimal or letter versions, regional suffixes, and NERC supporting materials that cite at least one recognized standard.
 
-1. `CIP-010-5` — primary demonstration boundary.
-2. `CIP-007-6` — supporting demonstration boundary.
+The application accepts one authorized public, searchable PDF at a time. It must display the source file, detected document type, referenced standard/version, and section or page reference for every material NERC claim retrieved from a local corpus or summarized from the upload.
 
-The application will use only approved, local copies of these versions (or synthetic requirement records derived for the demo). It must display the source file, standard/version, and section or page reference for every material NERC claim retrieved from a real local document.
+Out of scope: non-PDF material, documents without searchable text, documents that cannot be content-identified as NERC-associated, enforcement interpretations, organization-specific applicability decisions, and any claim that this system establishes compliance.
 
-Out of scope: other NERC standards, later or earlier versions, implementation guidance, enforcement interpretations, organization-specific applicability decisions, and any claim that this system establishes compliance.
-
-**Assumption:** the eventual local source folder contains authorized, publicly available copies whose filenames and page numbering can be preserved for citation.
+**Assumption:** the user has an authorized, publicly available NERC-published or NERC-shared PDF. Local content validation reduces accidental misuse but is not cryptographic proof of publication origin.
 
 ## 4. Sample case
 
@@ -53,16 +50,17 @@ Out of scope: other NERC standards, later or earlier versions, implementation gu
 
 Automated tests use deterministic fake implementations of tools 1–7. Tool 9 writes only to a disposable local test database during tests.
 
-## 6. Six agent roles
+## 6. Seven agent roles
 
-The MVP uses six named specialist roles. They are graph nodes with narrow responsibilities; they do not need to be six separate paid model calls.
+The MVP uses seven named specialist roles. They are deterministic components or graph nodes with narrow responsibilities; they do not need to be seven separate paid model calls.
 
 1. **Intake and Scope Agent** — validates the synthetic review request, standard identifier, version, and asset ID.
 2. **Requirement and Citation Agent** — retrieves the version-scoped requirement record and preserves citation metadata.
 3. **Control Drafting Agent** — creates a draft, organization-tailored control statement; it never labels it as compliant.
-4. **Evidence Insight Agent** — reads synthetic evidence and simulated baseline observations, then identifies missing or conflicting inputs.
-5. **Risk and Remediation Agent** — produces explainable gap findings, a High/Medium/Low score, and a draft remediation plan.
-6. **Human Handoff and Workflow Agent** — presents the plan, invokes the approval interrupt, and writes the simulated workflow only after approval.
+4. **Review Package Agent** — assembles the validated document profile, citations, draft controls, and remediation into a strict source-grounded package for SME tailoring; it cannot approve or deliver the package.
+5. **Evidence Insight Agent** — reads synthetic evidence and simulated baseline observations, then identifies missing or conflicting inputs.
+6. **Risk and Remediation Agent** — produces explainable gap findings, a High/Medium/Low score, and a draft remediation plan.
+7. **Human Handoff and Workflow Agent** — presents the plan, invokes the approval interrupt, and writes the simulated workflow only after approval.
 
 ## 7. State and control flow
 
@@ -157,7 +155,7 @@ Read-only tool failures retry once when safe, then produce a clear recoverable e
 
 ## 13. Ready-to-build checklist
 
-- [x] Scope selected: CIP-010-5 primary and CIP-007-6 supporting.
+- [x] Demonstration scope selected: CIP-010-5 primary and CIP-007-6 supporting; dynamic upload supports all recognized NERC standard families.
 - [x] Target user selected: compliance analyst.
 - [x] Interface selected: Streamlit.
 - [x] Persistence selected: local SQLite and local LangGraph checkpointer.

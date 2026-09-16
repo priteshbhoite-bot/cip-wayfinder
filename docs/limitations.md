@@ -1,7 +1,7 @@
 # Limitations
 
 - This is a fictional local application, not a NERC compliance determination, legal opinion, audit conclusion, or engineering approval.
-- Applicability is not determined automatically. Missing Functional Entity, jurisdiction, standard/version, or asset scope must be supplied by an SME.
+- Applicability is not determined automatically. The upload flow requires Functional Entity and Regional Entity context, while standard/version comes from the validated document. Asset-specific applicability and tailoring remain questions for an SME.
 - Draft controls, findings, risk labels, and remediation plans require organization-specific tailoring and human review.
 - Evidence and asset records are synthetic. The MVP must not receive confidential evidence or live IT/OT exports.
 - Local corpus extraction preserves source metadata but does not replace a qualified review of the authoritative document and organization context.

@@ -303,3 +303,61 @@
 - Keep the structured-provider seam and fake-provider tests as disconnected learning code; the Streamlit product now makes no external model request.
 - Keep package approval and optional SMTP email authorization as the two visible human gates.
 - Migrate cache counters stored by an already-open browser session by retaining current dashboard counters and dropping the removed model counters on the next rerun.
+
+## 2026-09-11 — Expand ingestion to NERC standards-related PDFs
+
+- Replace the CIP-010-5/CIP-007-6 filename allowlist with content-based discovery for all fourteen NERC Reliability Standard families published on NERC's standards page.
+- Accept decimal and letter versions plus regional standard suffixes, normalize common Unicode PDF dash characters, and preserve repeated requirement labels by combining them with their standard identity in multi-standard documents.
+- Require searchable text, a recognized standard reference in the PDF body, multiple NERC identity signals, and the existing public-document authorization attestation. Treat this as a best-effort local gate rather than proof of publication authenticity.
+- Dynamically classify the document and build a typed local knowledge profile containing its title, type, referenced standards, requirement or topic items, page locations, and bounded extractive summaries.
+- Prefer approved read-only corpus matches. When no corpus match exists, use the content-validated uploaded page summary and locator rather than pretending the standard is unsupported.
+- Keep the two-workspace UI, local-only processing, bounded 32-entry cache, draft-only controls, approval-gated Word creation, direct download, and separately authorized SMTP delivery.
+- Bump the cache-policy version and include the expanded document profile in cache identity so stale two-standard packages cannot be reused.
+## 2026-09-11 — Fixed package objective and typed Review Package Agent
+
+- Remove the editable Review objective from intake because the uploaded document and scoped user context now drive analysis.
+- Show the fixed product objective on the loading page: prepare a source-grounded draft package for SME tailoring.
+- Add a deterministic, strict Review Package Agent that preserves supplied mappings, controls, remediation, knowledge items, and source chunks while flagging missing approved-corpus support.
+- Keep quality review, human approval, deterministic Word rendering, download, and separately authorized email delivery outside the agent's authority.
+
+## 2026-09-11 — Remove Asset Scope from upload intake
+
+- Remove Asset Scope from the first-page form because the current document-driven review does not use it to change extraction or package assembly.
+- Require only Functional Entity and Regional Entity user context; derive standard/version from the validated NERC document.
+- Remove asset scope from the upload-flow readiness contract and Word metadata while retaining asset-specific tailoring questions inside draft controls.
+- Keep the separate LangGraph demonstration's selected synthetic asset ID unchanged.
+## 2026-09-16 — Submission-only verification
+
+- Verified 167 tests, 15 offline evaluations, dependency compatibility, initial Streamlit rendering, health, diff formatting and common credential patterns.
+- Corrected demo instructions and added coding-prompt examples. Did not add Excel automation or change application behavior.
+- Preserve existing local changes; do not imply the tested tree has been published or the assignment submitted. Final delivery links remain required.
+
+## 2026-09-11 — Expand the approved local CIP retrieval index
+
+- Allowlists the 24 distinct `cip-*.pdf` standard-version files supplied in the approved corpus directory through `approved_cip_manifest.json`.
+- Exclude the byte-identical `cip-008-7.1 (1).pdf` duplicate and do not ingest spreadsheets, synthetic organization context, the glossary, or multi-standard status summaries through the one-standard-per-document adapter.
+- Build local metadata-rich page chunks in SQLite without an embedding API, external tokenizer, web crawl, or model call.
+- Use neutral enforcement and effective-date metadata when those facts have not been independently curated; reviewers must verify current status against NERC.
+
+## 2026-09-11 — Recognize exact approved-corpus uploads
+
+- Connect the upload gate to the same approved corpus directory and manifest used to build local retrieval.
+- Accept weakly branded PDFs only when their SHA-256 hash exactly matches a manifest-listed local PDF and the manifest standard/version agrees with a standard reference extracted from the PDF body.
+- Continue to require a searchable PDF, a recognized standard reference, and the user's public-document authorization attestation.
+- Never trust a filename or mere presence in the corpus folder; altered and unlisted files must still pass the independent NERC identity-signal threshold.
+
+## 2026-09-12 — Bound retrieval to primary section-B requirements
+
+- Use one shared deterministic parser for uploaded-document knowledge and approved-corpus ingestion so requirement identities and boundaries cannot drift.
+- Extract only top-level `R1`, `R2`, and similar blocks between `B. Requirements and Measures` and `C. Compliance`; end each block at its matching measure or the next requirement.
+- Exclude measures, compliance sections, appendices, version history, and cross-document requirement citations from the primary requirement list.
+- Rebuild the 24-document corpus as 84 bounded requirement chunks with start/end page provenance.
+- Present the primary standard once, keep every requirement collapsed initially, and derive its plain-language synopsis from its own source block rather than a generic control draft.
+- Bump the dashboard cache policy to `nerc-primary-requirements-v3` and clear stale uploaded-document session state so prior page-level results cannot be reused after hot reload.
+
+## 2026-09-12 — Show both requirement summary and official extracted wording
+
+- Keep the plain-language synopsis and add the official requirement wording from the same bounded section-B source block beneath it.
+- Render PDF wording with Streamlit's literal text element so source content is not interpreted as Markdown and no fixed-height text area creates excess whitespace.
+- Retain a bounded requirement source block for content-validated uploads without a corpus match, while continuing to omit raw PDF bytes and unrelated document text from shared cache state.
+- Use the same extracted requirement wording in the Word package fallback path and bump the cache/session policy to `nerc-requirement-source-text-v4`.

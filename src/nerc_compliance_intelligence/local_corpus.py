@@ -9,14 +9,16 @@ from __future__ import annotations
 import hashlib
 from io import BytesIO
 import json
+import re
 import sqlite3
 from datetime import date, datetime, timezone
 from pathlib import Path
-import re
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+import pdfplumber
 from pypdf import PdfReader
 
+from nerc_compliance_intelligence.requirement_extraction import extract_requirement_blocks
 from nerc_compliance_intelligence.schemas import RequirementMapping, StandardVersion
 
 
@@ -25,14 +27,18 @@ class CorpusMetadata(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, frozen=True)
 
-    standard_id: str = Field(pattern=r"^CIP-\d{3}$")
-    version: str = Field(pattern=r"^\d+$")
+    standard_id: str = Field(pattern=r"^[A-Z]{3}-\d{3}(?:-[A-Z]{2,8})?$")
+    version: str = Field(pattern=r"^\d+(?:\.\d+)?[a-z]?$", max_length=12)
     requirement_reference: str = Field(min_length=1)
+    parent_requirement_reference: str | None = None
+    domain: str = "Requirement"
+    applicable_systems: str = "See the cited NERC source for applicability."
     functional_entity: str = Field(min_length=1, alias="Functional Entity")
     jurisdiction: str = Field(min_length=1)
     enforcement_status: str = Field(min_length=1)
     effective_date: date | None
     page: int = Field(ge=1)
+    end_page: int | None = Field(default=None, ge=1)
     section: str = Field(min_length=1)
     source_url: str = Field(min_length=1)
     retrieval_date: date
@@ -227,40 +233,66 @@ class LocalPdfCorpusAdapter:
 
     def _extract_document(self, entry: PdfCorpusManifestEntry, raw_pdf: bytes) -> LocalCorpusDocument:
         reader = PdfReader(BytesIO(raw_pdf))
-        chunks: list[RequirementChunk] = []
-        current_requirement = "Document introduction"
-        for page_number, page in enumerate(reader.pages, start=1):
-            text = (page.extract_text() or "").replace("\x00", "").strip()
-            if not text:
-                continue
-            requirement_match = re.search(r"\bR\s*(\d+)\.", text)
-            if requirement_match:
-                current_requirement = f"R{requirement_match.group(1)}"
-            section = "B. Requirements and Measures" if "Requirements and Measures" in text else "Extracted PDF page"
-            chunks.append(
+        page_texts = [
+            (page_number, page.extract_text() or "")
+            for page_number, page in enumerate(reader.pages, start=1)
+        ]
+        table_page_numbers = {
+            page_number
+            for page_number, text in page_texts
+            if re.search(
+                r"Part\s+Applicable\s+Systems\s+Requirements\s+Measures",
+                text,
+                re.IGNORECASE,
+            )
+        }
+        with pdfplumber.open(BytesIO(raw_pdf)) as pdf:
+            table_pages = [
+                (page_number, pdf.pages[page_number - 1].extract_tables())
+                for page_number in sorted(table_page_numbers)
+            ]
+        requirement_blocks = extract_requirement_blocks(
+            page_texts,
+            table_pages=table_pages,
+        )
+        if not requirement_blocks:
+            raise ValueError(
+                f"manifest-listed standard has no bounded requirements in section B: {entry.filename}"
+            )
+        chunks = [
                 RequirementChunk(
-                    chunk_id=f"{entry.source_id}-page-{page_number}",
-                    text=text,
+                    chunk_id=f"{entry.source_id}-{block.requirement_reference.casefold()}",
+                    text=block.text,
                     metadata=CorpusMetadata(
                         standard_id=entry.standard_id,
                         version=entry.version,
-                        requirement_reference=current_requirement,
+                        requirement_reference=block.requirement_reference,
+                        parent_requirement_reference=block.parent_requirement_reference,
+                        domain=block.domain,
+                        applicable_systems=block.applicable_systems,
                         **{"Functional Entity": entry.functional_entity},
                         jurisdiction=entry.jurisdiction,
                         enforcement_status=entry.enforcement_status,
                         effective_date=entry.effective_date,
-                        page=page_number,
-                        section=section,
+                        page=block.start_page,
+                        end_page=block.end_page,
+                        section="B. Requirements and Measures",
                         source_url=entry.source_url,
                         retrieval_date=entry.retrieval_date,
                     ),
                 )
-            )
+            for block in requirement_blocks
+        ]
         return LocalCorpusDocument(source_id=entry.source_id, chunks=chunks)
 
 
 def chunk_to_mapping(chunk: RequirementChunk, scope_role: str) -> RequirementMapping:
     """Adapt a retrieved local chunk to the existing requirement-tool output shape."""
+    page_label = (
+        f"pages {chunk.metadata.page}-{chunk.metadata.end_page}"
+        if chunk.metadata.end_page and chunk.metadata.end_page != chunk.metadata.page
+        else f"page {chunk.metadata.page}"
+    )
     return RequirementMapping(
         mapping_id=f"local-{chunk.chunk_id}",
         standard=StandardVersion(
@@ -270,6 +302,8 @@ def chunk_to_mapping(chunk: RequirementChunk, scope_role: str) -> RequirementMap
         ),
         requirement_reference=chunk.metadata.requirement_reference,
         source_name="Approved local corpus document",
-        source_locator=f"page {chunk.metadata.page}, section {chunk.metadata.section}",
+        source_locator=f"{page_label}, section {chunk.metadata.section}",
         draft_summary=chunk.text,
+        domain=chunk.metadata.domain,
+        applicable_systems=chunk.metadata.applicable_systems,
     )

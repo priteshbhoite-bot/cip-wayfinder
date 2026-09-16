@@ -31,6 +31,28 @@ def test_valid_synthetic_agent_state_serializes_and_round_trips() -> None:
 
 
 @pytest.mark.parametrize(
+    ("standard_id", "version"),
+    [
+        ("BAL-003", "2"),
+        ("CIP-002", "5.1a"),
+        ("PRC-006-NPCC", "2"),
+        ("TOP-003", "8"),
+    ],
+)
+def test_standard_version_accepts_nerc_families_and_version_shapes(
+    standard_id: str, version: str
+) -> None:
+    standard = StandardVersion(
+        standard_id=standard_id,
+        version=version,
+        scope_role="primary",
+    )
+
+    assert standard.standard_id == standard_id
+    assert standard.version == version
+
+
+@pytest.mark.parametrize(
     ("model", "example"),
     [
         (StandardVersion, INVALID_STANDARD_VERSION),

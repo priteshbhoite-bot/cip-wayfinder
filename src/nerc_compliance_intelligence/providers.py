@@ -315,7 +315,7 @@ def build_live_smoke_preview(settings: ProviderSettings) -> LiveSmokePreview:
     request = StructuredRequest(
         operation="structured_applicability_smoke",
         system_prompt="Return the supplied JSON shape only. Do not infer missing scope.",
-        input_payload={"functional_entity": None, "jurisdiction": None, "standard_id": None, "version": None, "asset_scope": None},
+        input_payload={"functional_entity": None, "jurisdiction": None, "standard_id": None, "version": None},
         response_schema_name="ApplicabilityAgentOutput",
         max_output_tokens=700,
     )

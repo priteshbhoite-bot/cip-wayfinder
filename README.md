@@ -1,8 +1,10 @@
 # CIP Wayfinder
 
-**CIP Wayfinder** helps utility teams explore a source-grounded starting point for Low-to-Medium Impact CIP readiness without using confidential evidence, live asset data, or production systems.
+**CIP Wayfinder** helps utility teams understand authorized NERC standards-related PDFs and turn source-grounded knowledge into draft control and remediation starting points without using confidential evidence, live asset data, or production systems.
 
 ## Final review guide
+
+Latest verified submission status: [final readiness check](docs/final-readiness-check.md). The 2026-09-16 check passed 167 tests and 15 offline evaluations. Submission still requires the final Google Doc, live app-demo video, current GitHub code, and submission form. The Excel walkthrough is not the required live app demo.
 
 Start here for product review and local use:
 
@@ -22,35 +24,39 @@ The local Streamlit page uses a SigmaFlow-inspired light theme in [`.streamlit/c
 
 The selected local app name is **CIP Wayfinder**, with a compass/waypoint logo asset at [`assets/cip-wayfinder-logo.png`](assets/cip-wayfinder-logo.png). A single 120px version appears at the top left of the main page beside the app name, and the same asset is used for the browser tab icon. The landing page uses text-and-badge safety cues, rather than repeating the logo, followed by three color-coded review waypoints. An optional native Streamlit status tour animates the four review steps only when the learner presses Play. The page subtitle preserves the learning-only, draft-guidance boundary. The name and logo are project concepts only and need separate trademark and brand review before any public use.
 
-At the top of every app view, a short description explains that CIP Wayfinder reviews one approved local NERC CIP standard at a time and organizes cited sources into draft materials for human review.
+At the top of every app view, a short description explains that CIP Wayfinder reviews one authorized NERC standards-related PDF at a time, builds a local document profile, and organizes source-grounded knowledge into draft materials for human review.
 
 ## Hybrid upload-and-chat interface
 
-The Streamlit app places the authorized public-PDF upload first. Its optional **How this local review works** expander contains a generated four-step infographic and a short guided tour, so the explanation is available without blocking the first task. It supports only one CIP-010-5 or CIP-007-6 document at a time, validates it locally, and keeps it in browser-session memory. The **Review package** workspace organizes cited sources, draft controls and remediation, and approval-gated Word delivery through direct download or optional email.
+The Streamlit app places the authorized public-PDF upload first. Its optional **How this local review works** expander contains a generated four-step infographic and a short guided tour, so the explanation is available without blocking the first task. It accepts one searchable PDF at a time and requires the user to attest that it is an authorized public document published or shared by NERC. Content validation requires a recognized NERC standard reference plus multiple NERC identity signals; a filename by itself is never sufficient. The document remains in browser-session memory. The **Review package** workspace keeps the existing layout for source knowledge, draft controls and remediation, and approval-gated Word delivery through direct download or optional email.
 
-The supplied public CIP PDFs are approved local source documents. The upload path matches their standard/version and extracted requirement labels against the approved local SQLite index in **read-only** mode. When matching chunks are found, the Review package shows a collapsed, plain-language summary of the requirement's purpose, key activity, timing, typical owner, and expected evidence, followed by a short page, section, and retrieval-date citation. The official wording remains in the cited public source for reviewer verification. The result is a source-grounded draft demonstration, not a real operational assessment or compliance conclusion.
+The local parser recognizes the NERC BAL, CIP, COM, EOP, FAC, INT, IRO, MOD, NUC, PER, PRC, TOP, TPL, and VAR families, including decimal or letter versions and regional suffixes. It classifies common standards-related materials, discovers every referenced standard version, extracts requirement labels when present, and otherwise creates one knowledge topic per referenced standard. Multi-standard documents keep repeated labels such as `R1` distinct by prefixing the relevant standard. Unicode dash variants from PDF extraction are normalized before matching.
 
-The Review package has no requirement-picker. It generates one draft control and one ordered draft remediation plan for every requirement label extracted from the uploaded standard, then displays all of them with their individual requirement IDs. Each matching local-source requirement now appears with citation metadata; every draft still needs organization-specific SME tailoring.
+The upload path first attempts to match each standard/version and requirement label against the approved local SQLite index in **read-only** mode. A corpus match uses its preserved provenance. Each requirement displays both a plain-language synopsis and the official requirement block extracted from section B; the extracted layout may differ from the published PDF. When no corpus entry exists, the app uses the bounded requirement block retained from the content-validated upload. Content-based identity checks are a local safety gate, not cryptographic proof of publication authenticity.
+
+The Review package has no requirement-picker. It generates one draft control and one ordered draft remediation plan for each extracted requirement or document knowledge item, then displays all items with their source locator and standard context. Supporting guidance is explicitly identified as non-binding material; every output still needs organization-specific SME tailoring.
 
 ## Demonstration flow
 
-The local Streamlit application keeps the workflow focused: upload and scope one public standard, review cited requirements and draft controls, then make a human export decision. Assignment diagnostics, graph-animation controls, and optional external-model enhancement are not shown as product features.
+The local Streamlit application keeps the workflow focused: upload and scope one public NERC standards-related document, review extracted knowledge and draft controls, then make a human export decision. Assignment diagnostics, graph-animation controls, and optional external-model enhancement are not shown as product features.
 
 The local Streamlit application makes the review workflow visible without requiring an external model call:
 
-1. **Case intake** — The analyst supplies one or more Functional Entity, Regional Entity, and asset-scope choices plus a review objective. The existing Applicability Agent asks direct questions for missing scope; it does not guess or decide applicability.
-2. **Source-grounded package** — The uploaded CIP standard/version and requirement labels are matched against the approved local corpus index in read-only mode. Matching chunks show short, cited local excerpts.
+1. **Case intake** — The analyst supplies one or more Functional Entity, Regional Entity, and asset-scope choices. The existing Applicability Agent asks direct questions for missing scope; it does not guess or decide applicability. The product objective is fixed: prepare a source-grounded draft package for SME tailoring.
+2. **Source-grounded package** — The uploaded PDF is content-validated, classified, and converted into a typed profile of its title, document type, referenced standards, requirement labels, bounded source blocks, page locations, and plain-language summaries. Approved local corpus matches take precedence; otherwise the content-validated uploaded requirement block supplies the local source text.
 3. **Human decision and deliverable** — The reviewer chooses Approve package, Needs editing, or Reject and supplies a role and rationale. Approval prepares an in-memory Word package containing the review scope, requirements and sources, draft controls, and remediation. The approved package can be downloaded directly. A separate form requires the recipient, destination preview, and explicit send authorization before SMTP is called.
 
-Every landing-page field has built-in hover help. The tooltips explain what the analyst should provide, include a fictional example where useful, and restate the no-confidential-data boundary for asset scope and document upload.
+Every landing-page field has built-in hover help. The tooltips explain what the analyst should provide and restate the no-confidential-data boundary for document upload and organization-specific scope values.
 
 For the actual checkpoint/resume, bounded retries, validation repair, interrupt, and guarded approved-only export demonstration, use the existing LangGraph tests and the demo script. No GitHub publication, external tracing, model request, or operational write is part of the local UI flow. SMTP remains a separate, explicitly approved external action.
 
-The app does not send an uploaded PDF to a provider or external service, persist the upload, accept confidential evidence, read live assets, or bypass human approval for export. Approved public source excerpts are visible to the reviewer and can be included in the explicitly approved local Word package.
+The app does not send an uploaded PDF to a provider or external service, persist the upload, accept confidential evidence, read live assets, or bypass human approval for export. Content-validated public source summaries and approved-corpus excerpts are visible to the reviewer and can be included in the explicitly approved local Word package.
 
 ## Intake reference options and provider learning code
 
-The landing page has a bundled, offline catalog of Functional Entity and Regional Entity choices collected once from public NERC material on 2026-08-31. It does not browse NERC at runtime and the options do not determine applicability. Functional Entity, Regional Entity, and asset-scope fields use straightforward multi-select dropdowns containing only the real listed choices. They accept multiple selections and typed values because a utility can have more than one relevant role, region, or review scope. Asset scope and review objective choices are safe local suggestions because NERC does not publish a universal list for those organization-specific fields.
+The landing page has a bundled, offline catalog of Functional Entity and Regional Entity choices collected once from public NERC material on 2026-08-31. It does not browse NERC at runtime and the options do not determine applicability. Both fields use straightforward multi-select dropdowns and accept multiple selections or typed values because a utility can have more than one relevant role or region. Asset-specific tailoring is intentionally deferred to the generated control questions rather than collected as a required intake field.
+
+The deterministic **Review Package Agent** receives only validated document knowledge, source mappings, draft controls, remediation plans, and any approved local-corpus matches. It preserves those objects in a strict typed package, flags items without an approved corpus match for source verification, and passes the package to quality review and human approval. It cannot retrieve new material, rewrite grounded content, approve, render, email, or take an operational action.
 
 The repository retains a source-grounded structured-provider seam as learning and test code. It accepts exactly one retrieved requirement mapping and constructs a bounded request containing only that record's standard/version, requirement ID, source metadata, and retrieved excerpt. The fake provider remains the default for tests. This seam is not connected to the Streamlit Review package, so normal product use makes no Token Factory call and needs no model credential.
 
@@ -121,7 +127,15 @@ uv run python -m nerc_compliance_intelligence.review_graph
 
 ## Milestone 7: local corpus ingestion
 
-`src/nerc_compliance_intelligence/local_corpus.py` ingests only explicitly supplied local JSON corpus files into a local SQLite index. It preserves provenance metadata and is idempotent. The current two-chunk corpus is a synthetic test fixture because no approved local NERC corpus was present in the repository.
+`src/nerc_compliance_intelligence/local_corpus.py` ingests only explicitly supplied local corpus files into a local SQLite index. The test suite retains a two-chunk synthetic JSON fixture, while `data/corpus_manifests/approved_cip_manifest.json` allowlists the 24 distinct approved CIP standard-version PDFs currently supplied in `../approved-nerc-corpus`. The shared parser creates one searchable source block per top-level requirement strictly within section B, stopping before measures and section C. The current corpus contains 84 bounded requirement chunks with provenance and idempotent content hashes; the adapter never ingests unlisted files or follows source URLs.
+
+Build or refresh the local approved CIP index:
+
+```powershell
+uv run python learning/ingest_approved_corpus.py
+```
+
+The generated `data/approved_nerc_corpus.sqlite` remains ignored by Git. In this MVP, “RAG tokens” means locally extracted, metadata-rich retrieval chunks; no embedding API or external tokenizer is called.
 
 Run the corpus tests:
 
@@ -189,7 +203,7 @@ Package approval has one narrow meaning: **the reviewer authorizes creation of a
 
 The Word package contains:
 
-- review scope and objective;
+- review scope and the fixed Review Package Agent objective;
 - requirement identifiers and approved-local source excerpts with provenance;
 - draft control objectives, activities, owners, frequency, procedures, evidence expectations, testing, assumptions, and tailoring questions;
 - ordered remediation actions, decisions, owners, and expected end states;
@@ -213,16 +227,16 @@ uv run python -m nerc_compliance_intelligence.evaluations
 uv run pytest tests/test_evaluations.py
 ```
 
-## Requirement-aware local drafting
+## Dynamic NERC document knowledge and local drafting
 
-The default draft generator is offline and deterministic, but it is no longer a generic ID-only template. For each requirement, CIP Wayfinder combines the locally retrieved source pages and recognizes the requirement area, such as Configuration Change Management, Security Patch Management, Ports and Services, or Vulnerability Assessments. It uses that local wording to create more specific draft activities, owners, timing, retained records, escalation, and remediation steps. Every draft remains source-cited, organization-tailored guidance—not a compliance determination.
+The ingestion layer is offline and deterministic. It dynamically creates a typed knowledge profile from the searchable uploaded PDF rather than relying on a fixed standards allowlist or filename. For known approved-corpus requirement areas, the drafter creates more specific activities, owners, timing, retained records, escalation, and remediation. For newly encountered standards or supporting documents, it creates conservative generic drafts from the locally extracted knowledge item and page locator. Every draft remains source-cited, organization-tailored guidance—not a compliance determination.
 
 ## MVP caching policy
 
 CIP Wayfinder uses two intentionally different caching layers:
 
 1. The approved local NERC SQLite corpus is the persistent source layer. It is opened read-only by the Streamlit review screen and is not a model-response cache.
-2. Public-source-derived review packages use a bounded Streamlit data cache (maximum 32 entries). The key changes when the uploaded public document hash, parsed standard/requirements, local corpus file revision, or cache-policy version changes.
+2. Public-source-derived review packages use a bounded Streamlit data cache (maximum 32 entries). The key changes when the uploaded public document hash, document profile, referenced standards, extracted knowledge items, local corpus file revision, or cache-policy version changes.
 Raw uploaded PDF bytes, credentials, approval state, confidential evidence, and operational data are never placed in the shared cache. Semantic or approximate matching is intentionally excluded from this MVP because a similar-looking compliance question may require a different answer. LangGraph checkpoints are workflow state, not a substitute for these caches.
 
 Caching is intentionally transparent in the product UI. Automated tests verify package-key invalidation.

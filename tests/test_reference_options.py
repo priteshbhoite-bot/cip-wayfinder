@@ -12,8 +12,7 @@ def test_reference_options_are_local_and_have_public_source_provenance() -> None
     assert all(source.url.startswith("https://www.nerc.com/") for source in options.sources)
 
 
-def test_reference_options_keep_asset_and_objective_suggestions_separate_from_nerc_lists() -> None:
+def test_reference_options_contain_only_source_backed_scope_lists() -> None:
     options = load_nerc_reference_options()
 
-    assert options.asset_scope_suggestions[0].startswith("Fictional")
-    assert options.review_objective_suggestions[0].startswith("Prepare")
+    assert not hasattr(options, "asset_scope_suggestions")

@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from nerc_compliance_intelligence.uploaded_standard import UploadedStandard
 
 
-CACHE_POLICY_VERSION = "mvp-cache-v1"
+CACHE_POLICY_VERSION = "nerc-requirement-part-controls-v5"
 DASHBOARD_CACHE_MAX_ENTRIES = 32
 
 
@@ -84,6 +84,11 @@ def dashboard_cache_key(uploaded: UploadedStandard, corpus_path: Path) -> str:
             "policy_version": CACHE_POLICY_VERSION,
             "content_hash": uploaded.content_hash,
             "standard": uploaded.standard.model_dump(mode="json"),
+            "document_title": uploaded.document_title,
+            "document_type": uploaded.document_type,
+            "referenced_standards": [
+                item.model_dump(mode="json") for item in uploaded.referenced_standards
+            ],
             "requirements": [item.model_dump(mode="json") for item in uploaded.requirements],
             "corpus_revision": file_revision(corpus_path),
         },

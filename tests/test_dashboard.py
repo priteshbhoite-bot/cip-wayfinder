@@ -19,6 +19,10 @@ def test_dashboard_traceability_stays_with_the_uploaded_document_mapping() -> No
     assert dashboard["control"].objective.requirement_ids == ["Document overview"]
     assert dashboard["remediation"].steps[0].action.requirement_ids == ["Document overview"]
     assert len(dashboard["packages"]) == len(dashboard["uploaded"].requirements)
+    assert dashboard["review_package_agent"].objective == (
+        "Prepare a source-grounded draft package for SME tailoring."
+    )
+    assert dashboard["quality_review"].is_valid is True
 
 
 def test_landing_page_explainer_image_is_packaged_with_the_project() -> None:
@@ -42,8 +46,6 @@ def test_every_landing_field_has_beginner_safe_hover_help() -> None:
     assert set(LANDING_FIELD_HELP) == {
         "functional_entity",
         "jurisdiction",
-        "asset_scope",
-        "review_objective",
         "standard_pdf",
         "authorization",
     }
@@ -64,7 +66,20 @@ def test_scope_fields_use_direct_unbounded_multiselects() -> None:
     assert "max_selections=" not in app_source
     assert 'st.multiselect("Functional Entity", REFERENCE_OPTIONS.functional_entities' in app_source
     assert 'st.multiselect("Regional Entity", REFERENCE_OPTIONS.regional_entities' in app_source
-    assert 'st.multiselect("Asset scope", REFERENCE_OPTIONS.asset_scope_suggestions' in app_source
+    assert 'st.multiselect("Asset scope"' not in app_source
+    assert 'st.selectbox("Review objective"' not in app_source
+    assert "What CIP Wayfinder will produce" in app_source
+
+
+def test_upload_validation_feedback_shares_the_submit_button_row() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    app_source = (project_root / "src" / "nerc_compliance_intelligence" / "app.py").read_text(encoding="utf-8")
+
+    assert "submit_column, feedback_column = st.columns(" in app_source
+    assert "with submit_column:" in app_source
+    assert "with feedback_column:" in app_source
+    assert "upload_feedback = st.empty()" in app_source
+    assert "upload_feedback.error(str(error))" in app_source
 
 
 def test_landing_page_has_three_color_coded_review_waypoints() -> None:
@@ -72,10 +87,11 @@ def test_landing_page_has_three_color_coded_review_waypoints() -> None:
     assert [highlight[3] for highlight in LANDING_HIGHLIGHTS] == ["blue", "violet", "green"]
 
 
-def test_app_description_explains_the_single_standard_review_boundary() -> None:
+def test_app_description_explains_the_single_nerc_document_review_boundary() -> None:
     description = " ".join(APP_DESCRIPTION)
 
-    assert "one approved local NERC CIP standard at a time" in description
+    assert "one authorized NERC standards-related PDF at a time" in description
+    assert "local document profile" in description
     assert "human review" in description
 
 
@@ -109,15 +125,53 @@ def test_open_review_button_uses_a_pre_rerun_workspace_callback() -> None:
     assert "on_click=_open_review_workspace" in app_source
 
 
-def test_requirement_section_shows_a_summary_instead_of_verbatim_source_language() -> None:
+def test_document_parser_version_invalidates_stale_uploaded_session_data() -> None:
     project_root = Path(__file__).resolve().parents[1]
     app_source = (project_root / "src" / "nerc_compliance_intelligence" / "app.py").read_text(encoding="utf-8")
 
-    assert "st.markdown(_requirement_vital_summary(control))" in app_source
+    assert 'st.session_state.get("document_knowledge_version") != CACHE_POLICY_VERSION' in app_source
+    assert 'st.session_state.pop(stale_key, None)' in app_source
+
+
+def test_requirement_section_shows_summary_and_official_extracted_language() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    app_source = (project_root / "src" / "nerc_compliance_intelligence" / "app.py").read_text(encoding="utf-8")
+
+    assert 'st.markdown("**What the requirement means**")' in app_source
+    assert "st.text(knowledge_item.summary)" in app_source
+    assert 'st.markdown("**Applicable systems**")' in app_source
+    assert "st.text(knowledge_item.applicable_systems)" in app_source
     assert "_compact_requirement_language(source_chunks)" not in app_source
-    assert "Plain-language draft summary" in app_source
-    assert "not the official NERC requirement wording" in app_source
+    assert "Plain-language summary" in app_source
+    assert "verify it against the official text below" in app_source
+    assert "Official requirement text" in app_source
+    assert "st.code(official_requirement, language=None, wrap_lines=False)" in app_source
+    assert "Scroll horizontally to review the complete source text" in app_source
     assert "height=240" not in app_source
+
+
+def test_control_and_remediation_section_uses_professional_structured_fields() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    app_source = (project_root / "src" / "nerc_compliance_intelligence" / "app.py").read_text(encoding="utf-8")
+
+    for label in (
+        "Draft control ID",
+        "Control domain",
+        "Applicable systems",
+        "Control objective",
+        "Required control activities",
+        "Owner and performer",
+        "Frequency or trigger",
+        "Implementation procedure",
+        "Evidence expected",
+        "Control test",
+        "Potential condition to assess",
+        "Draft remediation workflow",
+        "SME tailoring question",
+    ):
+        assert label in app_source
+    for stage in ("Immediate containment", "Corrective action", "Validation and closure"):
+        assert stage in app_source
 
 
 def test_review_package_sections_and_requirement_details_start_collapsed() -> None:
@@ -130,7 +184,7 @@ def test_review_package_sections_and_requirement_details_start_collapsed() -> No
         "Human decision",
     ):
         assert f'st.expander("{section_name}", expanded=False' in app_source
-    assert '"Show vital requirement summary"' in app_source
+    assert "mapping.requirement_reference," in app_source
     assert "value=False" in app_source
     assert "if show_requirement:" in app_source
 

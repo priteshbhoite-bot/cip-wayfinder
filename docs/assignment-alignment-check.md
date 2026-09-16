@@ -2,6 +2,8 @@
 
 ## Overall assessment
 
+**2026-09-16 verification:** see [final readiness check](final-readiness-check.md). All 167 tests and 15 offline evaluations passed. Delivery remains blocked on a final Google Doc, live app-demo video, current GitHub publication, and submission-form URL. The earlier completion labels below describe implementation evidence, not proof of submission. LangSmith remains a preview only; no live tracing run is claimed. A Nebius call is optional in the original assignment.
+
 **Strongly aligned as a code-track prototype.** The repository demonstrates the assignment's hard agentic-system requirements: a multi-step LangGraph workflow, typed state, tools with read/write classification, bounded recovery, a human approval interrupt, checkpointer and thread ID, local persistence/resume, tests, offline evaluations, an end-to-end demo script, and supporting documentation.
 
 The remaining work is primarily submission and production-readiness evidence, not the core graph design.
@@ -12,13 +14,13 @@ The remaining work is primarily submission and production-readiness evidence, no
 |---|---|---|---|
 | A real, multi-step agentic task | Complete | `src/nerc_compliance_intelligence/review_graph.py`, `docs/architecture.md` | Use the supplied CIP documents in the recorded demo. |
 | Code-track LangChain/LangGraph implementation | Complete | LangGraph `StateGraph`, `InMemorySaver`, `Command`, and `interrupt` usage | None for the prototype. |
-| Specialized agents and orchestration | Complete | Six roles in `docs/agent-framework.md`; graph nodes coordinate the pipeline | Explain the roles briefly in the video. |
+| Specialized agents and orchestration | Complete | Seven roles in `docs/agent-framework.md`; typed agents and graph nodes coordinate the pipeline | Explain the roles briefly in the video. |
 | Tools, with read vs. write boundaries | Complete | Nine typed tools and fixtures in `fake_tools.py`; only approved synthetic export is write-classified | None. |
 | Stateful control flow and memory | Complete | Typed `AgentState`, `thread_id`, checkpointer, and SQLite resume tests | None. |
 | Error handling and recovery | Complete | Empty retrieval, error, retry, repair, safe-stop, edit, reject, and approve branch tests | Demonstrate failure and recovery in the video. |
 | Human-in-the-loop before a write | Complete | LangGraph interrupt plus export guard; app decision preview does not bypass it | Demonstrate approve/edit/reject in the video. |
 | Tracing and evaluations | Complete for offline mode | 15 deterministic evaluations and safe LangSmith configuration preview | Optional: approved, cost-bounded live tracing run. |
-| Simple interface | Complete | Upload-first Streamlit interface with collapsed requirement summaries, draft review sections, and a human package decision | Show it live in the video. |
+| Simple interface | Complete | Upload-first Streamlit interface with dynamic NERC document profiling, collapsed knowledge summaries, draft review sections, and a human package decision | Show it live in the video. |
 | Project documentation | Substantially complete | Architecture, agent framework, data notes, prompt log, limitations, demo script, and this check | Assemble the requested material into one final Google Doc if that is the required submission format. |
 | Five-minute-or-less video demo | Not yet evidenced | `docs/demo-script.md` and ElevenLabs brief prepare the content | Record and save the final video. |
 | GitHub code link or ZIP | In progress | The public repository exists and the reviewed release changes are prepared as one local commit | Push the prepared commit after a final human check, or prepare a ZIP. |
@@ -29,7 +31,7 @@ The remaining work is primarily submission and production-readiness evidence, no
 The assignment's framework asks for a one-line goal, surface, steps, tools, memory, hard limits, human handoff, failure behavior, and a success measure.
 
 - **Goal and user:** defined in `docs/project-brief.md`; a compliance analyst reviews a scoped CIP standard.
-- **Surface:** Streamlit web interface.
+- **Surface:** Streamlit web interface with one content-validated, searchable NERC standards-related PDF per browser session.
 - **Steps and orchestration:** diagram and control flow in `docs/architecture.md`.
 - **Tools:** nine typed local tools with success, empty, and error fixtures.
 - **Memory:** browser-session upload state, `thread_id` plus `InMemorySaver`, and approval-gated SQLite case resume.

@@ -64,3 +64,7 @@ def test_dashboard_cache_key_changes_with_public_document_identity(tmp_path: Pat
 
     assert first == dashboard_cache_key(uploaded, corpus)
     assert first != dashboard_cache_key(changed, corpus)
+    assert first != dashboard_cache_key(
+        uploaded.model_copy(update={"document_type": "NERC implementation guidance"}),
+        corpus,
+    )

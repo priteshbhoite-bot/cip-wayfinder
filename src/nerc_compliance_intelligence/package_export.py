@@ -18,6 +18,7 @@ from docx.shared import Inches, Pt, RGBColor
 from pydantic import BaseModel, ConfigDict, Field
 
 from nerc_compliance_intelligence.case_intake import CaseIntakeAssessment
+from nerc_compliance_intelligence.review_package_agent import REVIEW_PACKAGE_OBJECTIVE
 
 
 WORD_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -49,6 +50,8 @@ class ExportSource(BaseModel):
     source_url: str | None = None
     retrieval_date: str | None = None
     verified_local_match: bool
+    source_status: str = "Source verification required"
+    content_label: str = "Source excerpt"
 
 
 class ExportRemediationStep(BaseModel):
@@ -63,6 +66,9 @@ class ExportRequirementPackage(BaseModel):
     """Source, control, and remediation content for one requirement."""
 
     requirement_reference: str
+    domain: str
+    applicable_systems: str
+    plain_language_summary: str
     sources: list[ExportSource]
     control_id: str
     control_title: str
@@ -87,10 +93,12 @@ class ReviewPackageExport(BaseModel):
     app_name: str = "CIP Wayfinder"
     document_title: str = "Draft control and remediation review package"
     source_file_name: str
+    source_document_title: str = "NERC standards-related document"
+    source_document_type: str = "NERC standards-related document"
     standard_version: str
+    referenced_standards: list[str] = Field(default_factory=list)
     functional_entities: list[str]
     regional_entities: list[str]
-    asset_scope: list[str]
     review_objective: str
     requirements: list[ExportRequirementPackage] = Field(min_length=1)
     export_decision: ExportDecision
@@ -124,31 +132,48 @@ def build_review_package_export(
     requirement_packages: list[ExportRequirementPackage] = []
     for package in data["packages"]:
         mapping = package["mapping"]
+        knowledge_item = package["knowledge_item"]
         control = package["control"]
         remediation = package["remediation"]
         sources = [
             ExportSource(
                 requirement_reference=mapping.requirement_reference,
-                locator=f"page {chunk.metadata.page}, {chunk.metadata.section}",
+                locator=(
+                    f"pages {chunk.metadata.page}-{chunk.metadata.end_page}, {chunk.metadata.section}"
+                    if chunk.metadata.end_page and chunk.metadata.end_page != chunk.metadata.page
+                    else f"page {chunk.metadata.page}, {chunk.metadata.section}"
+                ),
                 excerpt=_clean_text(chunk.text),
                 source_url=_clean_text(chunk.metadata.source_url),
                 retrieval_date=chunk.metadata.retrieval_date.isoformat(),
                 verified_local_match=True,
+                source_status="Approved local corpus match",
+                content_label="Approved local source excerpt",
             )
             for chunk in package["source_chunks"]
         ]
         if not sources:
+            uploaded_source_text = knowledge_item.source_text or knowledge_item.summary
             sources.append(
                 ExportSource(
                     requirement_reference=mapping.requirement_reference,
                     locator=_clean_text(mapping.source_locator),
-                    excerpt="No matching approved local source excerpt was available. Verify the requirement text before relying on this draft.",
+                    excerpt=_clean_text(uploaded_source_text),
                     verified_local_match=False,
+                    source_status="Content-validated uploaded NERC document",
+                    content_label=(
+                        "Locally extracted requirement text"
+                        if knowledge_item.source_text
+                        else "Local extractive summary"
+                    ),
                 )
             )
         requirement_packages.append(
             ExportRequirementPackage(
                 requirement_reference=mapping.requirement_reference,
+                domain=_clean_text(knowledge_item.domain),
+                applicable_systems=_clean_text(knowledge_item.applicable_systems),
+                plain_language_summary=_clean_text(knowledge_item.summary),
                 sources=sources,
                 control_id=control.control_id,
                 control_title=_clean_text(control.title.text),
@@ -171,11 +196,17 @@ def build_review_package_export(
     intake = assessment.intake if isinstance(assessment, CaseIntakeAssessment) else None
     return ReviewPackageExport(
         source_file_name=_clean_text(uploaded.file_name),
+        source_document_title=_clean_text(uploaded.document_title),
+        source_document_type=_clean_text(uploaded.document_type),
         standard_version=f"{uploaded.standard.standard_id}-{uploaded.standard.version}",
+        referenced_standards=[
+            f"{item.standard_id}-{item.version}" for item in uploaded.referenced_standards
+        ],
         functional_entities=list(intake.functional_entity) if intake else ["Not recorded"],
         regional_entities=list(intake.jurisdiction) if intake else ["Not recorded"],
-        asset_scope=list(intake.asset_scope) if intake else ["Not recorded"],
-        review_objective=_clean_text(intake.review_objective) if intake and intake.review_objective else "Not recorded",
+        review_objective=_clean_text(
+            getattr(data.get("review_package_agent"), "objective", REVIEW_PACKAGE_OBJECTIVE)
+        ),
         requirements=requirement_packages,
         export_decision=export_decision,
     )
@@ -331,12 +362,14 @@ def _configure_document(document: WordDocument) -> None:
 
 def _add_metadata_table(document: WordDocument, package: ReviewPackageExport) -> None:
     rows = [
-        ("Standard", package.standard_version),
+        ("Primary standard reference", package.standard_version),
+        ("Referenced standards", ", ".join(package.referenced_standards) or package.standard_version),
+        ("Document title", package.source_document_title),
+        ("Document type", package.source_document_type),
         ("Source document", package.source_file_name),
         ("Functional entities", ", ".join(package.functional_entities)),
         ("Regional entities", ", ".join(package.regional_entities)),
-        ("Asset scope", ", ".join(package.asset_scope)),
-        ("Review objective", package.review_objective),
+        ("Review Package Agent objective", package.review_objective),
         ("Package decision", f"Approved for download or email by {package.export_decision.reviewer_role}"),
         ("Decision recorded", package.export_decision.recorded_at.isoformat()),
     ]
@@ -361,8 +394,8 @@ def _add_requirement_summary(document: WordDocument, package: ReviewPackageExpor
     table = document.add_table(rows=1, cols=4)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
-    widths = (0.8, 1.15, 2.7, 1.85)
-    headers = ("Req.", "Source", "Draft control", "Owner")
+    widths = (0.8, 1.45, 2.5, 1.75)
+    headers = ("Req.", "Domain", "Draft control", "Owner")
     header = table.rows[0]
     _set_repeat_table_header(header)
     for cell, width, label in zip(header.cells, widths, headers, strict=True):
@@ -375,7 +408,7 @@ def _add_requirement_summary(document: WordDocument, package: ReviewPackageExpor
         row = table.add_row()
         values = (
             item.requirement_reference,
-            "Matched" if any(source.verified_local_match for source in item.sources) else "Verify",
+            item.domain,
             item.control_title,
             item.owner_role,
         )
@@ -385,20 +418,22 @@ def _add_requirement_summary(document: WordDocument, package: ReviewPackageExpor
             _set_cell_margins(cell)
             run = cell.paragraphs[0].add_run(_clean_text(value))
             _set_run_font(run, size=9.5)
-    _set_table_geometry(table, (1152, 1656, 3888, 2664))
+    _set_table_geometry(table, (1152, 2088, 3600, 2520))
 
 
 def _add_requirement_detail(document: WordDocument, item: ExportRequirementPackage) -> None:
     document.add_heading(f"{item.requirement_reference} - {item.control_title}", level=2)
+    _add_labeled_paragraph(document, "Domain", item.domain)
+    _add_labeled_paragraph(document, "What the requirement means", item.plain_language_summary)
+    _add_labeled_paragraph(document, "Applicable systems", item.applicable_systems, after=10)
     document.add_heading("Sources", level=3)
     for source_number, source in enumerate(item.sources, start=1):
-        status = "Approved local corpus match" if source.verified_local_match else "Source verification required"
-        _add_labeled_paragraph(document, f"Source {source_number}", f"{status} | {source.locator}", after=2)
+        _add_labeled_paragraph(document, f"Source {source_number}", f"{source.source_status} | {source.locator}", after=2)
         if source.retrieval_date:
             _add_labeled_paragraph(document, "Retrieved", source.retrieval_date, after=2)
         if source.source_url:
             _add_labeled_paragraph(document, "Source URL", source.source_url, after=4)
-        _add_callout(document, "Source excerpt", source.excerpt, fill=_PALE_GRAY)
+        _add_callout(document, source.content_label, source.excerpt, fill=_PALE_GRAY)
 
     document.add_heading("Draft control", level=3)
     _add_labeled_paragraph(document, "Control ID", item.control_id)
@@ -456,7 +491,7 @@ def render_review_package_docx(package: ReviewPackageExport) -> bytes:
 
     document.add_heading("Package summary", level=1)
     _add_requirement_summary(document, package)
-    document.add_heading("Requirements, sources, controls, and remediation", level=1)
+    document.add_heading("Knowledge items, sources, controls, and remediation", level=1)
     for requirement in package.requirements:
         _add_requirement_detail(document, requirement)
 

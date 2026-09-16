@@ -19,22 +19,26 @@ from nerc_compliance_intelligence.email_delivery import EmailDeliveryError, Word
 from nerc_compliance_intelligence.package_export import WORD_MIME_TYPE, ExportDecision, build_review_package_export, render_review_package_docx
 from nerc_compliance_intelligence.reference_options import load_nerc_reference_options
 from nerc_compliance_intelligence.providers import load_local_provider_environment
-from nerc_compliance_intelligence.uploaded_standard import UploadValidationError, UploadedStandard, analyze_uploaded_standard, validate_uploaded_standard
+from nerc_compliance_intelligence.quality_review import review_source_grounded_package
+from nerc_compliance_intelligence.review_package_agent import REVIEW_PACKAGE_OBJECTIVE, ReviewPackageAgentInput, ReviewPackageAgentItem, run_review_package_agent
+from nerc_compliance_intelligence.uploaded_standard import UploadValidationError, UploadedRequirementOption, UploadedStandard, analyze_uploaded_standard, validate_uploaded_standard
 
 
 SCREEN_NAMES = ("Start a review", "Review package")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 APP_LOGO_PATH = PROJECT_ROOT / "assets" / "cip-wayfinder-logo.png"
 APPROVED_CORPUS_INDEX = PROJECT_ROOT / "data" / "approved_nerc_corpus.sqlite"
+APPROVED_CORPUS_DIRECTORY = PROJECT_ROOT.parent / "approved-nerc-corpus"
+APPROVED_CORPUS_MANIFEST = PROJECT_ROOT / "data" / "corpus_manifests" / "approved_cip_manifest.json"
 LOCAL_DOTENV_PATH = PROJECT_ROOT / ".env"
 APP_DESCRIPTION = (
-    "CIP Wayfinder helps utility compliance analysts explore one approved local NERC CIP standard at a time.",
-    "It organizes cited source material into draft controls and remediation steps for human review.",
+    "CIP Wayfinder helps utility compliance analysts explore one authorized NERC standards-related PDF at a time.",
+    "It builds a local document profile and organizes source-grounded knowledge into draft controls and remediation steps for human review.",
 )
 REVIEW_GRAPH_STEPS = (
     "Validate intake scope",
     "Retrieve approved local sources",
-    "Create traceable draft controls and remediation",
+    "Assemble a source-grounded draft package",
     "Pause for human approval",
 )
 LANDING_HIGHLIGHTS = (
@@ -45,9 +49,7 @@ LANDING_HIGHLIGHTS = (
 LANDING_FIELD_HELP = {
     "functional_entity": "Choose every NERC Functional Model role relevant to this review, or type a fictional organization-specific value. This guides the draft; the app does not decide applicability. Do not enter real people or confidential organization data.",
     "jurisdiction": "Choose every NERC Regional Entity context relevant to this review, or type a more specific jurisdiction. This is intake context only and does not decide applicability.",
-    "asset_scope": "Choose every safe fictional asset scope relevant to this review, or type a synthetic asset group. Do not paste a live IT/OT inventory or operational export.",
-    "review_objective": "Choose a draft-review objective, or type a one-sentence objective for the package.",
-    "standard_pdf": "Upload one authorized, publicly available PDF named CIP-010-5 or CIP-007-6. The app keeps it in your browser session and reads it locally; do not upload confidential evidence.",
+    "standard_pdf": "Upload one authorized, publicly available, searchable PDF published or shared by NERC and tied to a recognized Reliability Standard. The app reads its content locally to verify the NERC relationship; do not upload confidential evidence.",
     "authorization": "Check this only when you are allowed to use the document in this local application and it is publicly available.",
 }
 
@@ -75,8 +77,11 @@ def _local_chunks_for_uploaded_standard(
     return {
         requirement.requirement_reference: store.retrieve(
             RetrievalQuery(
-                standard=uploaded_standard.standard.model_dump(),
-                requirement_reference=requirement.requirement_reference,
+                standard=(requirement.standard or uploaded_standard.standard).model_dump(),
+                requirement_reference=(
+                    requirement.source_requirement_reference
+                    or requirement.requirement_reference
+                ),
             )
         )
         for requirement in uploaded_standard.requirements
@@ -93,36 +98,64 @@ def uploaded_dashboard_data(
     for requirement in uploaded_standard.requirements:
         chunks = chunks_by_requirement.get(requirement.requirement_reference, [])
         if chunks:
-            first_mapping = chunk_to_mapping(chunks[0], uploaded_standard.standard.scope_role)
-            mappings.append(first_mapping.model_copy(update={"draft_summary": "\n\n".join(chunk.text for chunk in chunks)}))
+            source_scope = requirement.standard or uploaded_standard.standard
+            first_mapping = chunk_to_mapping(chunks[0], source_scope.scope_role)
+            mappings.append(
+                first_mapping.model_copy(
+                    update={
+                        "requirement_reference": requirement.requirement_reference,
+                        "draft_summary": "\n\n".join(chunk.text for chunk in chunks),
+                    }
+                )
+            )
         else:
             mappings.append(analyze_uploaded_standard(uploaded_standard, requirement.requirement_reference).requirement_mapping)
-    packages: list[dict[str, Any]] = []
-    for mapping in mappings:
+    package_items: list[ReviewPackageAgentItem] = []
+    for mapping, knowledge_item in zip(mappings, uploaded_standard.requirements, strict=True):
         generated = generate_draft_control_and_remediation(
             ControlGenerationInput(
                 retrieved_mappings=mappings,
                 selected_requirement_ids=[mapping.requirement_reference],
             )
         )
-        packages.append(
-            {
-                "mapping": mapping,
-                "control": generated.control,
-                "remediation": generated.remediation_plan,
-                "source_chunks": chunks_by_requirement.get(mapping.requirement_reference, []),
-            }
+        package_items.append(
+            ReviewPackageAgentItem(
+                mapping=mapping,
+                control=generated.control,
+                remediation=generated.remediation_plan,
+                source_chunks=chunks_by_requirement.get(mapping.requirement_reference, []),
+                knowledge_item=knowledge_item,
+            )
         )
+    agent_output = run_review_package_agent(
+        ReviewPackageAgentInput(
+            uploaded_standard=uploaded_standard,
+            items=package_items,
+        )
+    )
+    quality_review = review_source_grounded_package(agent_output)
+    packages = [
+        {
+            "mapping": item.mapping,
+            "control": item.control,
+            "remediation": item.remediation,
+            "source_chunks": item.source_chunks,
+            "knowledge_item": item.knowledge_item,
+        }
+        for item in agent_output.items
+    ]
     first_package = packages[0]
     return {
         "uploaded": uploaded_standard,
+        "review_package_agent": agent_output,
+        "quality_review": quality_review,
         "mappings": mappings,
         "packages": packages,
         # Retain the first package aliases for existing, beginner-friendly tests.
         "mapping": first_package["mapping"],
         "control": first_package["control"],
         "remediation": first_package["remediation"],
-        "local_source_match_count": sum(bool(chunks) for chunks in chunks_by_requirement.values()),
+        "local_source_match_count": agent_output.local_source_match_count,
     }
 
 
@@ -163,27 +196,50 @@ def cached_uploaded_dashboard_data(
     )
 
 
-def _minimal_pdf_bytes() -> bytes:
-    """Return a tiny local PDF for pure dashboard contract tests."""
-    from io import BytesIO
-    from pypdf import PdfWriter
-
-    output = BytesIO()
-    writer = PdfWriter()
-    writer.add_blank_page(width=72, height=72)
-    writer.write(output)
-    return output.getvalue()
-
-
 def demo_dashboard_data() -> dict[str, Any]:
     """Retain a pure synthetic helper for automated dashboard contract tests."""
-    uploaded = validate_uploaded_standard(file_name="CIP-010-5.pdf", file_bytes=_minimal_pdf_bytes(), authorized_public_document=True)
+    uploaded = UploadedStandard(
+        file_name="CIP-010-5.pdf",
+        content_hash="0" * 64,
+        standard={"standard_id": "CIP-010", "version": "5", "scope_role": "primary"},
+        page_count=1,
+        extracted_character_count=180,
+        requirements=[
+            UploadedRequirementOption(
+                requirement_reference="Document overview",
+                page=1,
+                title="Synthetic NERC document overview",
+                summary="Synthetic local NERC standards material for deterministic dashboard tests.",
+            )
+        ],
+        document_title="Synthetic CIP-010-5 learning document",
+        document_type="NERC Reliability Standard",
+        referenced_standards=[
+            {"standard_id": "CIP-010", "version": "5", "scope_role": "primary"}
+        ],
+        nerc_identity_signals=["synthetic test fixture"],
+    )
     return uploaded_dashboard_data(uploaded)
 
 
 def _initialize_session() -> None:
     """Set clear per-browser-session state without persistence or external calls."""
-    st.session_state.setdefault("hybrid_messages", [{"role": "assistant", "content": "Welcome. Upload one authorized, publicly available CIP-010-5 or CIP-007-6 PDF to begin a local review."}])
+    if st.session_state.get("document_knowledge_version") != CACHE_POLICY_VERSION:
+        for stale_key in (
+            "uploaded_standard",
+            "selected_analysis",
+            "last_analysis_choice",
+            "case_intake_assessment",
+            "decision_preview",
+            "approved_package_bytes",
+            "approved_package_file_name",
+            "approved_package_context_key",
+            "email_delivery_receipt",
+            "seen_dashboard_cache_keys",
+        ):
+            st.session_state.pop(stale_key, None)
+        st.session_state.document_knowledge_version = CACHE_POLICY_VERSION
+    st.session_state.setdefault("hybrid_messages", [{"role": "assistant", "content": "Welcome. Upload one authorized, publicly available NERC standards-related PDF to begin a local review."}])
     st.session_state.setdefault("uploaded_standard", None)
     st.session_state.setdefault("workspace", "Start a review")
     st.session_state.setdefault("selected_analysis", None)
@@ -252,7 +308,7 @@ def _render_landing_highlights() -> None:
 def _render_landing_page() -> None:
     """Show the single necessary first action, with optional process detail."""
     st.subheader("Start a review", anchor=False)
-    st.caption("Upload one authorized public CIP standard and define the local review scope. Results are drafts for human review.")
+    st.caption("Upload one authorized public NERC standards-related PDF and define the local review scope. Results are drafts for human review.")
     _render_upload_conversation()
     _render_how_it_works()
 
@@ -260,38 +316,53 @@ def _render_landing_page() -> None:
 def _render_upload_conversation() -> None:
     """Render the upload-first step and validate one PDF after user attestation."""
     with st.chat_message("assistant", avatar=":material/upload_file:"):
-        st.write("Start with one standard document. The app analyzes it locally in this browser session and does not send it to a model or external service.")
+        st.write("Start with one searchable NERC standards-related PDF. The app verifies and analyzes it locally in this browser session and does not send it to a model or external service.")
+        st.info(
+            f"**What CIP Wayfinder will produce:** {REVIEW_PACKAGE_OBJECTIVE} "
+            "The package includes document insights, citations, draft controls, and remediation guidance.",
+            icon=":material/inventory_2:",
+        )
         with st.form("standard_upload_form"):
             st.caption("Tell the Applicability Agent about the review scope. It asks for missing information; it does not guess whether a standard applies.")
             functional_entity = st.multiselect("Functional Entity", REFERENCE_OPTIONS.functional_entities, key="intake_functional_entity", accept_new_options=True, placeholder="Choose or type all relevant roles", help=LANDING_FIELD_HELP["functional_entity"])
             jurisdiction = st.multiselect("Regional Entity", REFERENCE_OPTIONS.regional_entities, key="intake_jurisdiction", accept_new_options=True, placeholder="Choose or type all relevant regions", help=LANDING_FIELD_HELP["jurisdiction"])
-            asset_scope = st.multiselect("Asset scope", REFERENCE_OPTIONS.asset_scope_suggestions, key="intake_asset_scope", accept_new_options=True, placeholder="Choose or type all relevant asset scopes", help=LANDING_FIELD_HELP["asset_scope"])
-            review_objective = st.selectbox("Review objective", REFERENCE_OPTIONS.review_objective_suggestions, index=None, key="intake_review_objective", accept_new_options=True, placeholder="Choose or type a review objective", help=LANDING_FIELD_HELP["review_objective"])
-            st.caption(f"Functional Entity and Regional Entity choices were collected once from public NERC sources on {REFERENCE_OPTIONS.retrieved_on}. Asset scope and objective are safe local suggestions; type your own when needed.")
-            uploaded_file = st.file_uploader("Upload one authorized public standard PDF", type=["pdf"], accept_multiple_files=False, max_upload_size=20, help=LANDING_FIELD_HELP["standard_pdf"])
+            st.caption(f"Functional Entity and Regional Entity choices were collected once from public NERC sources on {REFERENCE_OPTIONS.retrieved_on}. You may type an organization-specific role or region when needed.")
+            uploaded_file = st.file_uploader("Upload one authorized public NERC standards-related PDF", type=["pdf"], accept_multiple_files=False, max_upload_size=20, help=LANDING_FIELD_HELP["standard_pdf"])
             attestation = st.checkbox("I confirm this PDF is authorized and publicly available for this local learning review.", help=LANDING_FIELD_HELP["authorization"])
-            submitted = st.form_submit_button("Analyze locally", type="primary", icon=":material/verified:")
+            submit_column, feedback_column = st.columns(
+                [1, 4],
+                gap="small",
+                vertical_alignment="center",
+            )
+            with submit_column:
+                submitted = st.form_submit_button("Analyze locally", type="primary", icon=":material/verified:")
+            with feedback_column:
+                upload_feedback = st.empty()
         if submitted:
             if uploaded_file is None:
-                st.error("Choose one PDF before starting local analysis.")
+                upload_feedback.error("Choose one PDF before starting local analysis.")
                 return
             try:
-                uploaded = validate_uploaded_standard(file_name=uploaded_file.name, file_bytes=uploaded_file.getvalue(), authorized_public_document=attestation)
+                uploaded = validate_uploaded_standard(
+                    file_name=uploaded_file.name,
+                    file_bytes=uploaded_file.getvalue(),
+                    authorized_public_document=attestation,
+                    approved_corpus_directory=APPROVED_CORPUS_DIRECTORY,
+                    approved_corpus_manifest_path=APPROVED_CORPUS_MANIFEST,
+                )
             except UploadValidationError as error:
-                st.error(str(error))
+                upload_feedback.error(str(error))
                 return
             try:
                 assessment = assess_case_intake(
                     CaseIntake(
                         functional_entity=functional_entity,
                         jurisdiction=jurisdiction,
-                        asset_scope=asset_scope,
-                        review_objective=review_objective,
                     ),
                     uploaded.standard,
                 )
             except ValidationError:
-                st.error("Check the review scope values and try again. You may select all relevant Functional Entities, Regional Entities, and asset scopes.")
+                st.error("Check the review scope values and try again. You may select all relevant Functional Entities and Regional Entities.")
                 return
             st.session_state.case_intake_assessment = assessment
             if not assessment.ready_for_review:
@@ -324,14 +395,18 @@ def _render_chat(uploaded_standard: UploadedStandard) -> None:
     st.success("Your standard and review scope were validated locally. No information was sent to an external model.", icon=":material/check_circle:")
     st.caption(
         f"Document: {uploaded_standard.file_name} | "
-        f"{uploaded_standard.standard.standard_id}-{uploaded_standard.standard.version} | session only"
+        f"{uploaded_standard.document_type} | "
+        f"primary reference {uploaded_standard.standard.standard_id}-{uploaded_standard.standard.version} | session only"
+    )
+    st.caption(
+        f"Local knowledge profile: {len(uploaded_standard.requirements)} items across "
+        f"{len(uploaded_standard.referenced_standards) or 1} referenced standard versions"
     )
     if isinstance(assessment, CaseIntakeAssessment):
         st.caption(
             "Scope: "
             f"{', '.join(assessment.intake.functional_entity)} | "
-            f"{', '.join(assessment.intake.jurisdiction)} | "
-            f"{', '.join(assessment.intake.asset_scope)}"
+            f"{', '.join(assessment.intake.jurisdiction)}"
         )
     st.button(
         "Open review package",
@@ -391,23 +466,31 @@ def _prepare_approved_word_package(
     st.session_state.email_delivery_receipt = None
 
 
-def _requirement_vital_summary(control: Any) -> str:
-    """Return the most useful draft requirement details without quoting source text."""
-    key_activity = control.activities[0].activity.text if control.activities else "Review and define the required activity."
-    return "\n".join(
-        (
-            f"- **Purpose:** {control.objective.text}",
-            f"- **Key activity:** {key_activity}",
-            f"- **Timing:** {control.trigger_frequency.text}",
-            f"- **Typical owner:** {control.owner_role.text}",
-            f"- **Evidence to retain:** {control.evidence_expectation.text}",
-        )
-    )
+def _requirement_vital_summary(knowledge_item: UploadedRequirementOption) -> str:
+    """Show a source-derived synopsis rather than reusing a generated control."""
+    return f"**What it requires:** {knowledge_item.summary}"
+
+
+def _official_requirement_text(
+    source_chunks: list[RequirementChunk],
+    knowledge_item: UploadedRequirementOption,
+) -> str | None:
+    """Prefer approved-corpus wording, then the bounded uploaded source block."""
+    if source_chunks:
+        return "\n\n".join(source.text.strip() for source in source_chunks if source.text.strip()) or None
+    return knowledge_item.source_text.strip() if knowledge_item.source_text else None
 
 
 def _requirement_source_line(source_chunks: list[RequirementChunk]) -> str:
     """Return one compact traceability line for all displayed source chunks."""
-    locations = [f"page {source.metadata.page}, {source.metadata.section}" for source in source_chunks]
+    locations = [
+        (
+            f"pages {source.metadata.page}-{source.metadata.end_page}, {source.metadata.section}"
+            if source.metadata.end_page and source.metadata.end_page != source.metadata.page
+            else f"page {source.metadata.page}, {source.metadata.section}"
+        )
+        for source in source_chunks
+    ]
     unique_locations = list(dict.fromkeys(locations))
     retrieval_dates = list(dict.fromkeys(str(source.metadata.retrieval_date) for source in source_chunks))
     return f"Source: {'; '.join(unique_locations)} | retrieved {', '.join(retrieval_dates)}"
@@ -417,35 +500,83 @@ def _render_review_package(data: dict[str, Any]) -> None:
     """Show the essential review content in three progressive sections."""
     uploaded, packages = data["uploaded"], data["packages"]
     st.subheader("Review package")
+    agent_output = data["review_package_agent"]
+    st.caption(f"Review Package Agent objective: {agent_output.objective}")
+    quality_review = data["quality_review"]
+    if quality_review.is_valid:
+        st.caption("Quality Reviewer: structural traceability checks passed; warnings still require SME attention.")
     st.caption("Read cited sources, inspect draft guidance, then make a human decision.")
     requirements, matched_sources, controls = st.columns(3)
-    requirements.metric("Requirements", len(packages))
-    matched_sources.metric("Source matches", data["local_source_match_count"])
+    requirements.metric("Knowledge items", len(packages))
+    matched_sources.metric("Corpus matches", data["local_source_match_count"])
     controls.metric("Draft controls", len(packages))
+    referenced_labels = ", ".join(
+        f"{item.standard_id}-{item.version}" for item in uploaded.referenced_standards
+    ) or f"{uploaded.standard.standard_id}-{uploaded.standard.version}"
+    st.caption(
+        f"Detected document: {uploaded.document_title} | {uploaded.document_type} | "
+        f"Referenced standards: {referenced_labels}"
+    )
+    if uploaded.document_type != "NERC Reliability Standard":
+        st.info(
+            "This file was identified as NERC standards-related supporting material, not as a Reliability Standard. "
+            "Its knowledge and control outputs remain non-binding drafts for SME review.",
+            icon=":material/info:",
+        )
 
     with st.expander("Requirements and sources", expanded=False, icon=":material/article:"):
         st.caption(
-            f"{uploaded.file_name} | {uploaded.standard.standard_id}-{uploaded.standard.version} | "
-            "read locally and held in this browser session only"
+            f"{uploaded.file_name} | {uploaded.document_type} | "
+            "content-validated and read locally; held in this browser session only"
         )
+        st.markdown(
+            f"**Primary standard:** {uploaded.standard.standard_id}-{uploaded.standard.version}"
+        )
+        if agent_output.missing_information:
+            st.warning(
+                f"The Review Package Agent flagged {len(agent_output.missing_information)} item(s) "
+                "without an approved local corpus match. Verify their uploaded-document summaries "
+                "against the official NERC source before relying on the drafts.",
+                icon=":material/find_in_page:",
+            )
         for package in packages:
             mapping = package["mapping"]
-            control = package["control"]
             source_chunks = package["source_chunks"]
+            knowledge_item = package["knowledge_item"]
             with st.container(border=True, gap="small"):
-                st.markdown(f"**{mapping.requirement_reference}**")
+                requirement_label = (
+                    f"{mapping.requirement_reference} — {knowledge_item.domain}"
+                    if knowledge_item.domain != "Requirement"
+                    else mapping.requirement_reference
+                )
                 show_requirement = st.toggle(
-                    "Show vital requirement summary",
+                    requirement_label,
                     value=False,
                     key=f"requirement_source_{mapping.requirement_reference}",
                 )
                 if show_requirement:
-                    if source_chunks:
-                        st.caption("Plain-language draft summary — not the official NERC requirement wording.")
-                        st.markdown(_requirement_vital_summary(control))
-                        st.caption(_requirement_source_line(source_chunks))
-                    else:
-                        st.warning("No matching approved local source was found for a reliable summary.", icon=":material/warning:")
+                    domain_column, source_column = st.columns([2, 3])
+                    with domain_column:
+                        st.markdown("**Domain**")
+                        st.text(knowledge_item.domain)
+                    with source_column:
+                        st.markdown("**Source location**")
+                        if source_chunks:
+                            st.text(_requirement_source_line(source_chunks))
+                        else:
+                            st.text(mapping.source_locator)
+                    st.markdown("**What the requirement means**")
+                    st.caption("Plain-language summary; verify it against the official text below.")
+                    st.text(knowledge_item.summary)
+                    st.markdown("**Applicable systems**")
+                    st.text(knowledge_item.applicable_systems)
+                    official_requirement = _official_requirement_text(source_chunks, knowledge_item)
+                    if official_requirement:
+                        st.markdown("**Official requirement text**")
+                        st.code(official_requirement, language=None, wrap_lines=False)
+                        st.caption(
+                            "Extracted from the locally read PDF. Scroll horizontally to review the complete source text."
+                        )
         st.caption("Use each citation to verify the official NERC requirement before relying on any draft guidance.")
 
     with st.expander("Draft controls and remediation", expanded=False, icon=":material/fact_check:"):
@@ -454,24 +585,70 @@ def _render_review_package(data: dict[str, Any]) -> None:
             control = package["control"]
             mapping = package["mapping"]
             remediation = package["remediation"]
-            with st.container(border=True):
-                st.markdown(f"#### {mapping.requirement_reference}")
-                st.write("**Objective:**", control.objective.text)
-                st.write("**Owner:**", control.owner_role.text)
-                st.write("**Frequency:**", control.trigger_frequency.text)
-                st.write("**Evidence:**", control.evidence_expectation.text)
-                st.write("**Tailoring question:**", control.tailoring_questions[0].text)
-                st.dataframe(
-                    [
-                        {"step": step.step_number, "action": step.action.text, "owner": step.owner_role.text}
-                        for step in remediation.steps
-                    ],
-                    hide_index=True,
+            knowledge_item = package["knowledge_item"]
+            with st.container(border=True, gap="small"):
+                show_control = st.toggle(
+                    f"{mapping.requirement_reference} — {control.title.text}",
+                    value=False,
+                    key=f"control_remediation_{mapping.requirement_reference}",
                 )
-                st.caption(
-                    f"Traceability: control and remediation steps link to retrieved requirement "
-                    f"{mapping.requirement_reference}."
-                )
+                if show_control:
+                    identity_column, domain_column = st.columns([2, 3])
+                    with identity_column:
+                        st.markdown("**Draft control ID**")
+                        st.code(control.control_id, language=None)
+                    with domain_column:
+                        st.markdown("**Control domain**")
+                        st.text(knowledge_item.domain)
+                    st.markdown("**Applicable systems**")
+                    st.text(knowledge_item.applicable_systems)
+                    st.markdown("**Control objective**")
+                    st.text(control.objective.text)
+                    st.markdown("**Required control activities**")
+                    for activity in control.activities:
+                        st.write(f"- {activity.activity.text}")
+                    owner_column, frequency_column = st.columns(2)
+                    with owner_column:
+                        st.markdown("**Owner and performer**")
+                        st.text(f"{control.owner_role.text}\n{control.performer.text}")
+                    with frequency_column:
+                        st.markdown("**Frequency or trigger**")
+                        st.text(control.trigger_frequency.text)
+                    st.markdown("**Implementation procedure**")
+                    st.text(control.procedure.text)
+                    st.markdown("**Evidence expected**")
+                    st.text(control.evidence_expectation.text)
+                    st.markdown("**Control test**")
+                    st.text(control.test_procedure.text)
+                    st.markdown("**Potential condition to assess**")
+                    st.text(
+                        "A remediation item may be needed when the organization cannot demonstrate "
+                        f"the documented process, implementation, or evidence for {mapping.requirement_reference}."
+                    )
+                    st.markdown("**Draft remediation workflow**")
+                    remediation_stages = (
+                        "Immediate containment",
+                        "Corrective action",
+                        "Validation and closure",
+                    )
+                    st.dataframe(
+                        [
+                            {
+                                "stage": remediation_stages[step.step_number - 1],
+                                "action": step.action.text,
+                                "owner": step.owner_role.text,
+                                "decision and closure": f"{step.decision.text} {step.end_state.text}",
+                            }
+                            for step in remediation.steps
+                        ],
+                        hide_index=True,
+                    )
+                    st.markdown("**SME tailoring question**")
+                    st.text(control.tailoring_questions[0].text)
+                    st.caption(
+                        f"Every draft statement remains traceable to {mapping.requirement_reference}. "
+                        "No gap, control, or remediation is approved automatically."
+                    )
         st.warning("Potential gaps and remediation steps are review observations, not compliance conclusions or automatic closures.", icon=":material/person_check:")
 
     with st.expander("Human decision", expanded=False, icon=":material/person_check:"):
@@ -490,6 +667,8 @@ def _render_review_package(data: dict[str, Any]) -> None:
             allowed_decisions = {"Approve package", "Needs editing", "Reject"}
             if decision_label not in allowed_decisions or not reviewer_role.strip() or not decision_notes.strip():
                 st.error("Choose a valid decision and provide both reviewer role and rationale.")
+            elif decision_label == "Approve package" and not quality_review.is_valid:
+                st.error("The package failed structural quality checks and cannot be approved.")
             else:
                 st.session_state.decision_preview = {
                     "decision": decision_label,

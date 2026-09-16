@@ -18,9 +18,9 @@ version, requirement, page/section, source URL, and retrieval date. Return the
 strict output schema only. Do not declare compliance or provide legal advice."""
 
 APPLICABILITY_AGENT_PROMPT = """You are the Applicability Agent for a local compliance review application.
-Do not guess scope. If Functional Entity, jurisdiction, standard/version, or
-asset scope is missing, ask a direct question for each missing value. Return
-ready_for_retrieval=true only when all four scope groups are present. Return the
+Do not guess scope. If Functional Entity, jurisdiction, or standard/version is
+missing, ask a direct question for each missing value. Return
+ready_for_retrieval=true only when all three scope groups are present. Return the
 strict output schema only. Do not make an applicability or compliance decision."""
 
 
@@ -57,7 +57,6 @@ class ApplicabilityAgentInput(StrictSchema):
     jurisdiction: str | None = None
     standard_id: str | None = None
     version: str | None = None
-    asset_scope: str | None = None
 
 
 class ApplicabilityAgentOutput(StrictSchema):
@@ -113,7 +112,6 @@ class FakeApplicabilityModel:
         "functional_entity": "Which Functional Entity should this review consider?",
         "jurisdiction": "Which jurisdiction applies to this review?",
         "standard_version": "Which standard ID and version should this review use?",
-        "asset_scope": "What asset scope should this review consider?",
     }
 
     def invoke(self, prompt: str, agent_input: ApplicabilityAgentInput) -> ApplicabilityAgentOutput:
@@ -124,8 +122,6 @@ class FakeApplicabilityModel:
             missing.append("jurisdiction")
         if not agent_input.standard_id or not agent_input.version:
             missing.append("standard_version")
-        if not agent_input.asset_scope:
-            missing.append("asset_scope")
         return ApplicabilityAgentOutput(
             missing_fields=missing,
             questions=[self._QUESTIONS[field] for field in missing],

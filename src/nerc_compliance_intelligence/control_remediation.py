@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from nerc_compliance_intelligence.providers import ProviderResult, ProviderSettings, StructuredProvider, StructuredRequest, generate_with_retry
+from nerc_compliance_intelligence.requirement_extraction import summarize_requirement_text
 from nerc_compliance_intelligence.schemas import RequirementMapping
 
 
@@ -173,6 +174,8 @@ def build_source_grounded_control_draft_request(generation_input: ControlGenerat
                 "source_name": mapping.source_name,
                 "source_locator": mapping.source_locator,
                 "retrieved_excerpt": mapping.draft_summary,
+                "domain": mapping.domain,
+                "applicable_systems": mapping.applicable_systems,
             },
             "safety_boundary": "Draft guidance for SME tailoring only; no compliance conclusion or operational action.",
         },
@@ -226,6 +229,8 @@ def _source_text(mapping: RequirementMapping) -> str:
 
 def _requirement_title(mapping: RequirementMapping, source_text: str) -> str:
     """Prefer the requirement table title visible in the approved local source."""
+    if mapping.domain and mapping.domain != "Requirement":
+        return mapping.domain
     match = re.search(r"Table\s+R\s*\d+\s*[–-]\s*([^\n.]{3,100})", source_text, flags=re.IGNORECASE)
     if match:
         return match.group(1).strip(" -–")
@@ -234,7 +239,12 @@ def _requirement_title(mapping: RequirementMapping, source_text: str) -> str:
 
 def _cadence_from_source(source_text: str) -> str | None:
     """Return a visible timing phrase when the source states one."""
-    match = re.search(r"(?:at least once every|within)\s+\d+\s+calendar\s+(?:days|months)", source_text, flags=re.IGNORECASE)
+    match = re.search(
+        r"(?:at least once every|within|intervals? no greater than)\s+"
+        r"\d+\s+calendar\s+(?:days|months)",
+        source_text,
+        flags=re.IGNORECASE,
+    )
     return match.group(0).casefold() if match else None
 
 
@@ -244,6 +254,10 @@ def _local_requirement_context(mapping: RequirementMapping) -> RequirementDraftC
     title = _requirement_title(mapping, source_text)
     normalized_title = title.casefold()
     cadence = _cadence_from_source(source_text)
+    requirement_summary = summarize_requirement_text(
+        source_text,
+        mapping.requirement_reference,
+    )
 
     if "configuration change management" in normalized_title:
         return RequirementDraftContext(
@@ -273,15 +287,61 @@ def _local_requirement_context(mapping: RequirementMapping) -> RequirementDraftC
             exception_escalation="Escalate an overdue assessment, incomplete result, or unresolved follow-up action to the vulnerability assessment owner.",
         )
     if "ports and services" in normalized_title:
+        if "physical input/output ports" in source_text.casefold():
+            return RequirementDraftContext(
+                title="Physical input/output port protection",
+                activity="Inventory applicable physical input/output ports, determine whether each port is necessary, and protect unnecessary ports through configuration restrictions, physical controls, or an approved procedural safeguard.",
+                owner_role="System security owner with the applicable system owner",
+                trigger_frequency="Before production use, after relevant configuration changes, and during the documented periodic review",
+                evidence_expectation="Retain the physical-port inventory, necessity determination, protection method, approval, and validation evidence.",
+                exception_escalation="Escalate an exposed unnecessary physical port or an unsupported protection method to the system security owner.",
+            )
         return RequirementDraftContext(
             title=title,
-            activity="Document the need for enabled logical ports and services, limit unnecessary network-accessible ports, and protect the source-listed physical input/output ports.",
+            activity="Maintain an approved logical ports and services baseline for each applicable system or asset group. Document the business or operational need for every enabled port or service and compare actual configurations with the approved baseline.",
             owner_role="System security owner with the applicable system owner",
             trigger_frequency="Before enabling or changing an in-scope port or service and during the documented periodic review",
             evidence_expectation="Retain the port/service inventory, documented business need, approval or technical-feasibility rationale, and review record.",
             exception_escalation="Escalate an enabled port or service without documented need or an unprotected physical port to the system security owner.",
         )
     if "security patch management" in normalized_title:
+        lowered_source = source_text.casefold()
+        if "source or sources" in lowered_source and "tracking" in lowered_source:
+            return RequirementDraftContext(
+                title="Patch source and asset tracking",
+                activity="Maintain an asset-to-patch-source mapping with product, version, monitored source, monitoring method, and accountable owner. Document the workflow for identifying, evaluating, disposing, implementing, and retaining evidence for security patches.",
+                owner_role="Patch management owner with the applicable system owner",
+                trigger_frequency="When an applicable asset or patch source changes and during each patch-monitoring cycle",
+                evidence_expectation="Retain the asset inventory, approved patch-source mapping, monitoring records, ownership assignments, and patch-management procedure.",
+                exception_escalation="Escalate an updateable asset without a monitored patch source or accountable owner to the patch management owner.",
+            )
+        if "evaluate security patches" in lowered_source:
+            return RequirementDraftContext(
+                title="Security patch applicability evaluation",
+                activity="Review every documented patch source, identify releases since the previous completed evaluation, assess applicability, and record the evaluator, evaluation date, decision, and rationale.",
+                owner_role="Patch management owner with the applicable system owner",
+                trigger_frequency=cadence.capitalize() if cadence else "At the source-defined patch-evaluation interval",
+                evidence_expectation="Retain dated source checks, released-patch inventories, applicability decisions, rationales, reviewer records, and any linked patch application or mitigation plan disposition records.",
+                exception_escalation="Escalate an overdue evaluation or an unevaluated released patch to the patch management owner.",
+            )
+        if "take one of the following actions" in lowered_source:
+            return RequirementDraftContext(
+                title="Patch application or mitigation disposition",
+                activity="Track each applicable patch through disposition. Before the source-defined deadline, apply the patch, create a dated mitigation plan, or revise an existing mitigation plan with defined actions and a completion timeframe.",
+                owner_role="Patch management owner with the applicable system owner",
+                trigger_frequency=cadence.capitalize() if cadence else "After each applicable patch evaluation and before the source-defined disposition deadline",
+                evidence_expectation="Retain the applicability record, disposition deadline, installation evidence or dated mitigation plan, planned actions, timeframe, and approvals.",
+                exception_escalation="Escalate an applicable patch without timely installation evidence or a complete dated mitigation plan.",
+            )
+        if "implement the plan within" in lowered_source:
+            return RequirementDraftContext(
+                title="Patch mitigation plan completion and approval",
+                activity="Track mitigation-plan milestones and complete each plan within its stated timeframe. Require documented CIP Senior Manager or delegate approval before revising the plan or extending its timeframe.",
+                owner_role="Patch management owner with CIP Senior Manager oversight",
+                trigger_frequency="Continuously against each approved mitigation-plan timeframe",
+                evidence_expectation="Retain mitigation implementation records, milestone tracking, completion validation, and approvals for revisions or extensions.",
+                exception_escalation="Escalate an overdue mitigation action or an unapproved plan revision or extension to the CIP Senior Manager or delegate.",
+            )
         return RequirementDraftContext(
             title=title,
             activity="Evaluate security patches from documented sources for applicability, then apply the patch, create or revise a mitigation plan, or document why the patch is not applicable.",
@@ -291,6 +351,25 @@ def _local_requirement_context(mapping: RequirementMapping) -> RequirementDraftC
             exception_escalation="Escalate an overdue applicability evaluation, patch action, or mitigation-plan milestone to the patch management owner.",
         )
     if "malicious code prevention" in normalized_title:
+        lowered_source = source_text.casefold()
+        if "mitigate the threat" in lowered_source:
+            return RequirementDraftContext(
+                title="Malicious code response",
+                activity="Maintain and execute a documented process to triage, contain, eradicate, recover from, and record detected malicious code, including required escalation decisions.",
+                owner_role="Cybersecurity operations owner with the applicable system owner",
+                trigger_frequency="Whenever malicious code is detected",
+                evidence_expectation="Retain detection records, investigation notes, containment and eradication actions, recovery validation, escalation, and closure evidence.",
+                exception_escalation="Escalate an unresolved malicious-code detection or incomplete response record to cybersecurity operations and incident response leadership.",
+            )
+        if "signatures or patterns" in lowered_source:
+            return RequirementDraftContext(
+                title="Malicious code signature and pattern updates",
+                activity="Document the approved source, retrieval method, testing, installation, failure handling, and validation process for malicious-code signatures or patterns.",
+                owner_role="Cybersecurity operations owner with the applicable system owner",
+                trigger_frequency="When updated signatures or patterns are released and at the organization-approved monitoring interval",
+                evidence_expectation="Retain update notifications, testing results, deployment records, failed-update investigations, and validation evidence.",
+                exception_escalation="Escalate stale signatures, failed updates, or incomplete testing and installation evidence to cybersecurity operations.",
+            )
         return RequirementDraftContext(
             title=title,
             activity="Maintain documented malicious-code prevention processes and record the response used to mitigate the threat of detected malicious code.",
@@ -299,13 +378,54 @@ def _local_requirement_context(mapping: RequirementMapping) -> RequirementDraftC
             evidence_expectation="Retain the documented prevention process, detection or response records, and mitigation actions for detected malicious code.",
             exception_escalation="Escalate a detected malicious-code event without documented mitigation to the cybersecurity operations owner.",
         )
+    if "security event monitoring" in normalized_title:
+        lowered_source = source_text.casefold()
+        if "log events" in lowered_source:
+            activity = "Maintain a logging baseline and configure applicable systems to record the source-required security event classes. Test that each required event can be generated, collected, and retrieved."
+            evidence = "Retain the logging baseline, configuration evidence, event-generation tests, collection results, and documented technical limitations."
+        elif "generate alerts" in lowered_source:
+            activity = "Maintain an approved security-event alert catalog, configure the source-required alerts, verify recipients and escalation paths, and periodically test alert generation and receipt."
+            evidence = "Retain the alert catalog, rule configuration, recipient and escalation mapping, test events, delivery results, and exception records."
+        elif "retain applicable event logs" in lowered_source:
+            activity = "Configure applicable log sources or centralized logging systems to retain the required event records for the source-defined period and periodically validate available history and capacity."
+            evidence = "Retain configuration records, storage and capacity checks, retention-period reports, gap investigations, and validation results."
+        else:
+            activity = "Perform and document the source-required review of summarized or sampled logged events, record systems covered and findings, and escalate potential undetected Cyber Security Incidents."
+            evidence = "Retain the review method, review date, reviewer, systems covered, sampled or summarized events, findings, disposition, and escalation records."
+        return RequirementDraftContext(
+            title=title,
+            activity=activity,
+            owner_role="Security monitoring owner with the applicable system owner",
+            trigger_frequency=cadence.capitalize() if cadence else "At the source-defined interval and when a monitoring exception occurs",
+            evidence_expectation=evidence,
+            exception_escalation="Escalate missing logs, failed alerts, retention gaps, overdue reviews, or unresolved findings to the security monitoring owner.",
+        )
+    if "system access control" in normalized_title:
+        return RequirementDraftContext(
+            title=title,
+            activity=f"Establish and operate an access-control procedure that addresses this source-derived requirement: {requirement_summary} Record applicable systems, configuration or procedural enforcement, exceptions, approvals, and validation results.",
+            owner_role="Identity and access management owner with the applicable system owner",
+            trigger_frequency=cadence.capitalize() if cadence else "Before granting or changing access and at the source-defined review interval",
+            evidence_expectation="Retain applicable-system scope, access-control configuration or procedures, account or authorization records, exceptions, approvals, and validation evidence.",
+            exception_escalation="Escalate an unenforced access requirement, unauthorized access, overdue action, or unsupported technical exception to the access-control owner.",
+        )
     return RequirementDraftContext(
         title=title,
-        activity=f"Maintain a documented process that addresses the locally retrieved {title} requirement and record the result of each in-scope review.",
-        owner_role="Compliance manager with the applicable system owner",
+        activity=(
+            f"Establish and maintain a documented {title.casefold()} procedure. Identify the applicable systems, "
+            f"assign accountable owners, perform and record the required activity, and resolve exceptions. "
+            f"The procedure must address this source-derived requirement: {requirement_summary}"
+        ),
+        owner_role=f"{title} control owner with the applicable system owner",
         trigger_frequency="At the source-defined interval or before the applicable activity is completed",
-        evidence_expectation="Retain the documented process, in-scope review records, and required approvals linked to the cited requirement.",
-        exception_escalation="Escalate incomplete process records or unresolved review questions to the compliance manager for SME disposition.",
+        evidence_expectation=(
+            "Retain the approved procedure, applicability record, completed activity records, exceptions, "
+            "required approvals, and validation evidence linked to the cited requirement."
+        ),
+        exception_escalation=(
+            f"Escalate an overdue activity, an unresolved exception, or incomplete {title.casefold()} evidence "
+            "to the control owner and compliance manager for SME disposition."
+        ),
     )
 
 
@@ -314,7 +434,6 @@ def generate_draft_control_and_remediation(
 ) -> ControlGenerationOutput:
     """Create a local, source-aware draft while preserving traceable requirement IDs."""
     requirement_ids = generation_input.selected_requirement_ids
-    identifier_suffix = re.sub(r"[^a-z0-9]+", "-", "-".join(requirement_ids).casefold()).strip("-")
     selected_mapping = next(
         mapping
         for mapping in generation_input.retrieved_mappings
@@ -322,33 +441,42 @@ def generate_draft_control_and_remediation(
     )
     context = _local_requirement_context(selected_mapping)
     standard_label = f"{selected_mapping.standard.standard_id}-{selected_mapping.standard.version} {selected_mapping.requirement_reference}"
+    control_id = re.sub(
+        r"[^A-Z0-9]+",
+        "-",
+        f"DRAFT-{selected_mapping.standard.standard_id}-{selected_mapping.standard.version}-{selected_mapping.requirement_reference}".upper(),
+    ).strip("-")
+    requirement_summary = summarize_requirement_text(
+        _source_text(selected_mapping),
+        selected_mapping.requirement_reference,
+    )
 
     def traced(text: str) -> TraceableContent:
         return TraceableContent(text=text, requirement_ids=requirement_ids)
 
     control = DraftControl(
-        control_id=f"draft-control-{identifier_suffix}",
-        title=traced(f"Draft {standard_label} — {context.title}"),
-        objective=traced(f"Maintain a documented, human-reviewed process for {context.title} that addresses the cited {standard_label} source requirement."),
+        control_id=control_id,
+        title=traced(f"{context.title} - {selected_mapping.requirement_reference} draft control"),
+        objective=traced(f"Ensure the organization can consistently demonstrate the actions required by {standard_label}: {requirement_summary}"),
         activities=[ControlActivity(activity=traced(context.activity))],
         control_type=traced("Preventive and detective draft control"),
         owner_role=traced(context.owner_role),
         performer=traced("Assigned compliance or cybersecurity analyst under the named owner"),
         trigger_frequency=traced(context.trigger_frequency),
-        procedure=traced(f"Use the cited local source at {selected_mapping.source_locator} to guide the review; {context.activity}"),
+        procedure=traced(f"Use the cited local source at {selected_mapping.source_locator}. {context.activity}"),
         evidence_expectation=traced(context.evidence_expectation),
         exception_escalation=traced(context.exception_escalation),
         test_procedure=traced(f"A reviewer samples an in-scope {context.title} record and confirms the required documentation is present and linked to {standard_label}."),
-        assumptions=[traced("This local draft is based only on the approved retrieved requirement text and requires organization-specific SME tailoring.")],
-        tailoring_questions=[traced(f"Which systems, owner roles, documented interval, retention period, and exception route should the SME approve for {context.title}?")],
+        assumptions=[traced("Applicability, ownership, technology capabilities, frequencies, and evidence retention must be confirmed by the organization's SMEs before implementation.")],
+        tailoring_questions=[traced(f"Which of the source-listed applicable systems are in scope, who owns the {context.title.casefold()} process, what operating workflow will be used, and what evidence will demonstrate consistent performance?")],
     )
     remediation_plan = DraftRemediationPlan(
-        plan_id=f"draft-remediation-{identifier_suffix}",
+        plan_id=f"draft-remediation-{control_id.casefold()}",
         control_id=control.control_id,
         steps=[
-            RemediationStep(step_number=1, action=traced(f"Confirm the applicable systems and current documented process for {context.title}."), owner_role=traced(context.owner_role), decision=traced("Is the in-scope process and supporting documentation complete enough for SME review?"), end_state=traced("Proceed with the requirement-specific review or request the missing scope and documentation.")),
-            RemediationStep(step_number=2, action=traced(context.activity), owner_role=traced(context.owner_role), decision=traced("Does the completed review satisfy the organization-tailored draft procedure?"), end_state=traced("Record the result, document an exception, or return the draft for tailoring.")),
-            RemediationStep(step_number=3, action=traced(context.exception_escalation), owner_role=traced("Compliance manager"), decision=traced("Has a human reviewer approved the proposed draft disposition?"), end_state=traced("Keep the draft for human decision; no operational change or workflow closure occurs automatically.")),
+            RemediationStep(step_number=1, action=traced(f"Identify affected systems and records that may not demonstrate {requirement_summary} Apply documented interim safeguards when the SME determines they are necessary."), owner_role=traced(context.owner_role), decision=traced("Is there a credible current exposure or missed requirement activity that needs immediate containment?"), end_state=traced("Affected scope, current condition, interim safeguards, owner, and escalation are documented.")),
+            RemediationStep(step_number=2, action=traced(context.activity), owner_role=traced(context.owner_role), decision=traced("Has the corrective action been implemented for every confirmed in-scope system and exception?"), end_state=traced("The approved procedure is implemented, exceptions are governed, and supporting records are retained.")),
+            RemediationStep(step_number=3, action=traced(f"Validate the corrected {context.title.casefold()} process through record review or testing, confirm evidence completeness, and obtain required human approval before closure."), owner_role=traced("Independent reviewer or compliance manager"), decision=traced("Do validation results and retained evidence support closure of the remediation item?"), end_state=traced("The reviewer records validation results and either closes the item or returns it for additional corrective action.")),
         ],
     )
     output = ControlGenerationOutput(control=control, remediation_plan=remediation_plan)

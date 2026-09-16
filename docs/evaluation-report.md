@@ -1,6 +1,6 @@
 # Offline Evaluation Report
 
-Run date: 2026-08-28  
+Run date: 2026-09-16
 Mode: deterministic local-only; fake providers; no external tracing or model calls.
 
 | # | Evaluation | Result | Proof |
@@ -24,3 +24,7 @@ Mode: deterministic local-only; fake providers; no external tracing or model cal
 Command: `uv run python -m nerc_compliance_intelligence.evaluations`.
 
 The report is test evidence for the MVP behavior, not evidence of NERC compliance.
+
+Final readiness rerun: all 15 evaluations passed with tracing and network calls disabled. The full suite passed with **167 tests** in 111.81 seconds using `.venv/Scripts/python.exe -m pytest -q --basetemp=outputs/readiness-20260916-tests`. An earlier run had 17 temporary-folder permission errors; an isolated workspace-local temporary directory resolved them without application changes. Use a fresh temporary directory name for subsequent checks.
+
+Additional checks: `uv pip check --python .venv/Scripts/python.exe` found all 78 installed packages compatible; `git diff --check` passed; Streamlit health returned `ok`; AppTest rendered the initial page with zero exceptions. An existing non-fatal workspace-widget default/session-state warning remains. A pattern scan of 105 candidate source files found no common credential patterns or candidate credential files; this is not a comprehensive security audit.

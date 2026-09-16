@@ -30,12 +30,12 @@ class DecisionType(str, Enum):
 
 
 class StandardVersion(BaseModel):
-    """Identifies one version-bounded standard used in the synthetic demo."""
+    """Identifies one NERC standard family, number, regional suffix, and version."""
 
     model_config = ConfigDict(frozen=True)
 
-    standard_id: str = Field(pattern=r"^CIP-\d{3}$")
-    version: str = Field(pattern=r"^\d+$")
+    standard_id: str = Field(pattern=r"^[A-Z]{3}-\d{3}(?:-[A-Z]{2,8})?$")
+    version: str = Field(pattern=r"^\d+(?:\.\d+)?[a-z]?$", max_length=12)
     scope_role: str = Field(pattern=r"^(primary|supporting)$")
 
 
@@ -48,6 +48,8 @@ class RequirementMapping(BaseModel):
     source_name: str = Field(min_length=1)
     source_locator: str = Field(min_length=1)
     draft_summary: str = Field(min_length=1)
+    domain: str = "Requirement"
+    applicable_systems: str = "See the cited NERC source for applicability."
 
 
 class ProcessStep(BaseModel):

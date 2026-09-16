@@ -31,8 +31,6 @@ class NercReferenceOptions(BaseModel):
     sources: list[ReferenceSource] = Field(min_length=1)
     functional_entities: list[str] = Field(min_length=1)
     regional_entities: list[str] = Field(min_length=1)
-    asset_scope_suggestions: list[str] = Field(min_length=1)
-    review_objective_suggestions: list[str] = Field(min_length=1)
 
 
 def load_nerc_reference_options(path: Path = CATALOG_PATH) -> NercReferenceOptions:

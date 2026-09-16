@@ -6,12 +6,12 @@ The default models are deterministic Python classes, not LLM calls. This keeps t
 
 The Standards Agent receives retrieved chunks. It may create a mapping only by copying the retrieved chunk text and its source metadata into a citation. The contract rejects a made-up chunk ID, page, source URL, requirement reference, or draft summary.
 
-The Applicability Agent does not decide whether a standard applies. It asks one direct question for each missing scope group: Functional Entity, jurisdiction, standard/version, and asset scope. It becomes ready for retrieval only after every group is supplied.
+The Applicability Agent does not decide whether a standard applies. It asks one direct question for each missing scope group: Functional Entity, jurisdiction, and standard/version. It becomes ready for retrieval only after every group is supplied. Asset-specific tailoring is handled later through SME questions in the generated draft.
 
 Sample state transition:
 
 ```text
-{}  →  missing: Functional Entity, jurisdiction, standard/version, asset scope
+{}  →  missing: Functional Entity, jurisdiction, standard/version
 full scope supplied  →  ready_for_retrieval: true
 retrieved source chunk supplied  →  source-grounded draft mapping plus citation
 ```

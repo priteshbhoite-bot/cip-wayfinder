@@ -30,8 +30,8 @@ REQUEST = StructuredRequest(
     response_schema_name="ApplicabilityAgentOutput",
 )
 VALID_OUTPUT = {
-    "missing_fields": ["asset_scope"],
-    "questions": ["What asset scope should this review consider?"],
+    "missing_fields": ["jurisdiction"],
+    "questions": ["Which jurisdiction applies to this review?"],
     "ready_for_retrieval": False,
 }
 
@@ -81,7 +81,7 @@ def test_fake_provider_returns_a_validated_structured_output() -> None:
     assert result.model == "fake-structured-v1"
     assert result.latency_ms == 3
     assert result.attempts == 1
-    assert result.parsed_output.missing_fields == ["asset_scope"]
+    assert result.parsed_output.missing_fields == ["jurisdiction"]
 
 
 def test_fake_provider_retries_a_temporary_error_within_the_bound() -> None:
@@ -123,14 +123,14 @@ def test_live_provider_is_blocked_without_a_separate_approval_step() -> None:
 
 
 def test_nebius_provider_uses_schema_constrained_chat_request_without_network() -> None:
-    transport = RecordingNebiusTransport({"choices": [{"message": {"content": '{"missing_fields":["asset_scope"],"questions":["What asset scope should this review consider?"],"ready_for_retrieval":false}'}}]})
+    transport = RecordingNebiusTransport({"choices": [{"message": {"content": '{"missing_fields":["jurisdiction"],"questions":["Which jurisdiction applies to this review?"],"ready_for_retrieval":false}'}}]})
     provider = NebiusStructuredProvider(api_key="test-key-not-a-real-secret", transport=transport)
     settings = ProviderSettings(provider="nebius", model="account-approved-model", timeout_seconds=7, max_retries=0)
 
     result = provider.generate(REQUEST, ApplicabilityAgentOutput, settings)
 
     assert result.model == "account-approved-model"
-    assert result.parsed_output.missing_fields == ["asset_scope"]
+    assert result.parsed_output.missing_fields == ["jurisdiction"]
     assert transport.calls[0]["url"] == "https://api.studio.nebius.ai/v1/chat/completions"
     assert transport.calls[0]["headers"] == {"Authorization": "Bearer test-key-not-a-real-secret", "Content-Type": "application/json"}
     assert transport.calls[0]["payload"]["extra_body"] == {"guided_json": ApplicabilityAgentOutput.model_json_schema()}
@@ -144,7 +144,7 @@ def test_nebius_provider_requires_an_account_selected_model() -> None:
 
 
 def test_token_factory_provider_uses_documented_json_schema_response_format() -> None:
-    transport = RecordingNebiusTransport({"choices": [{"message": {"content": '{"missing_fields":["asset_scope"],"questions":["What asset scope should this review consider?"],"ready_for_retrieval":false}'}}]})
+    transport = RecordingNebiusTransport({"choices": [{"message": {"content": '{"missing_fields":["jurisdiction"],"questions":["Which jurisdiction applies to this review?"],"ready_for_retrieval":false}'}}]})
     provider = NebiusStructuredProvider(
         api_key="test-key-not-a-real-secret",
         base_url="https://api.tokenfactory.nebius.com/v1",
@@ -162,7 +162,7 @@ def test_token_factory_provider_uses_documented_json_schema_response_format() ->
 
 
 def test_token_factory_provider_includes_a_requested_low_reasoning_limit() -> None:
-    transport = RecordingNebiusTransport({"choices": [{"message": {"content": '{"missing_fields":["asset_scope"],"questions":["What asset scope should this review consider?"],"ready_for_retrieval":false}'}}]})
+    transport = RecordingNebiusTransport({"choices": [{"message": {"content": '{"missing_fields":["jurisdiction"],"questions":["Which jurisdiction applies to this review?"],"ready_for_retrieval":false}'}}]})
     provider = NebiusStructuredProvider(api_key="test-key-not-a-real-secret", base_url="https://api.tokenfactory.nebius.com/v1", transport=transport)
     request = REQUEST.model_copy(update={"max_output_tokens": 2_000, "reasoning_effort": "low"})
 

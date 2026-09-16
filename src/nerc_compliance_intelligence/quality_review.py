@@ -20,6 +20,7 @@ from nerc_compliance_intelligence.control_remediation import (
 )
 from nerc_compliance_intelligence.evidence_analysis import EvidenceAnalysisOutput
 from nerc_compliance_intelligence.schemas import RequirementMapping
+from nerc_compliance_intelligence.review_package_agent import ReviewPackageAgentOutput
 
 
 class QualitySeverity(str, Enum):
@@ -85,4 +86,56 @@ def review_package(review_package: ReviewPackage) -> QualityReviewResult:
         is_valid=not any(issue.severity is QualitySeverity.ERROR for issue in issues),
         issues=issues,
         checked_components=["retrieved requirements", "draft control", "draft remediation", "evidence analysis", "baseline observation"],
+    )
+
+
+def review_source_grounded_package(
+    package: ReviewPackageAgentOutput,
+) -> QualityReviewResult:
+    """Validate the upload-driven package before the human decision boundary."""
+    issues: list[QualityIssue] = []
+    mappings = [item.mapping for item in package.items]
+    for item in package.items:
+        try:
+            validate_traceability(
+                ControlGenerationOutput(
+                    control=item.control,
+                    remediation_plan=item.remediation,
+                ),
+                mappings,
+            )
+        except ValueError:
+            issues.append(
+                QualityIssue(
+                    code="package.traceability_invalid",
+                    severity=QualitySeverity.ERROR,
+                    message="One or more assembled fields reference a requirement absent from the package.",
+                )
+            )
+        if item.remediation.control_id != item.control.control_id:
+            issues.append(
+                QualityIssue(
+                    code="package.control_link_missing",
+                    severity=QualitySeverity.ERROR,
+                    message="An assembled remediation plan is not linked to its draft control.",
+                )
+            )
+        if not item.source_chunks:
+            issues.append(
+                QualityIssue(
+                    code="package.upload_summary_requires_verification",
+                    severity=QualitySeverity.WARNING,
+                    message="An uploaded-document summary has no approved local corpus match and requires SME source verification.",
+                )
+            )
+    return QualityReviewResult(
+        is_valid=not any(issue.severity is QualitySeverity.ERROR for issue in issues),
+        issues=issues,
+        checked_components=[
+            "document profile",
+            "source mappings",
+            "draft controls",
+            "draft remediation",
+            "source links",
+        ],
     )

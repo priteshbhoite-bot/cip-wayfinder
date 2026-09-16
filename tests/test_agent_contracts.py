@@ -64,9 +64,9 @@ def test_standards_agent_rejects_a_model_that_cites_an_unretrieved_source() -> N
 def test_applicability_agent_asks_for_every_missing_scope_group() -> None:
     output = run_applicability_agent(ApplicabilityAgentInput())
 
-    assert output.missing_fields == ["functional_entity", "jurisdiction", "standard_version", "asset_scope"]
+    assert output.missing_fields == ["functional_entity", "jurisdiction", "standard_version"]
     assert output.ready_for_retrieval is False
-    assert len(output.questions) == 4
+    assert len(output.questions) == 3
 
 
 def test_applicability_agent_marks_complete_scope_ready_without_guessing() -> None:
@@ -76,7 +76,6 @@ def test_applicability_agent_marks_complete_scope_ready_without_guessing() -> No
             jurisdiction="Synthetic jurisdiction",
             standard_id="CIP-010",
             version="5",
-            asset_scope="Synthetic asset scope",
         )
     )
 
@@ -87,6 +86,6 @@ def test_applicability_agent_marks_complete_scope_ready_without_guessing() -> No
 
 def test_contract_schemas_reject_extra_fields_and_inconsistent_readiness() -> None:
     with pytest.raises(ValidationError):
-        ApplicabilityAgentInput.model_validate({"asset_scope": "scope", "guessed_field": "not allowed"})
+        ApplicabilityAgentInput.model_validate({"jurisdiction": "scope", "guessed_field": "not allowed"})
     with pytest.raises(ValidationError, match="ready_for_retrieval"):
-        ApplicabilityAgentOutput(missing_fields=["asset_scope"], questions=["What asset scope?"], ready_for_retrieval=True)
+        ApplicabilityAgentOutput(missing_fields=["jurisdiction"], questions=["Which jurisdiction?"], ready_for_retrieval=True)

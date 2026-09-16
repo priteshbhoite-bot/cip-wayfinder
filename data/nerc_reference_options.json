@@ -7,7 +7,5 @@
     {"label": "NERC Key Players", "url": "https://www.nerc.com/who-we-are/key-players"}
   ],
   "functional_entities": ["Balancing Authority", "Compliance Enforcement Authority", "Distribution Provider", "Generator Owner", "Generator Operator", "Interchange Authority", "Load-Serving Entity", "Market Operator (Resource Integrator)", "Planning Coordinator", "Purchasing-Selling Entity", "Reliability Assurer", "Reliability Coordinator", "Resource Planner", "Standards Developer", "Transmission Owner", "Transmission Operator", "Transmission Planner", "Transmission Service Provider"],
-  "regional_entities": ["Midwest Reliability Organization (MRO)", "NPCC, Inc. (NPCC)", "ReliabilityFirst (RF)", "SERC Reliability Corporation (SERC)", "Texas Reliability Entity (Texas RE)", "Western Electricity Coordinating Council (WECC)"],
-  "asset_scope_suggestions": ["Fictional medium-impact BES Cyber System scope", "Fictional configuration change-management scope", "Fictional patch-management scope", "Fictional electronic access-control scope"],
-  "review_objective_suggestions": ["Prepare a source-grounded draft package for SME tailoring.", "Identify questions about a fictional configuration-change process.", "Review synthetic evidence and baseline observations for a draft control."]
+  "regional_entities": ["Midwest Reliability Organization (MRO)", "NPCC, Inc. (NPCC)", "ReliabilityFirst (RF)", "SERC Reliability Corporation (SERC)", "Texas Reliability Entity (Texas RE)", "Western Electricity Coordinating Council (WECC)"]
 }
