@@ -1,5 +1,7 @@
 # CIP Wayfinder assignment demonstration script
 
+Aligned with Submission v4 and published application baseline `ce0f0c9`. Aim for 4:40 and leave a 20-second buffer. Existing video: https://drive.google.com/file/d/1LBrPT0LFz-n4r8UJg99BQxy7cHizHDAA/view (opens as ElevenLabs.mov; current-app coverage and duration still need review). Repository: https://github.com/priteshbhoite-bot/cip-wayfinder.
+
 ## Demo goal
 
 Demonstrate, in five minutes or less, how CIP Wayfinder turns an authorized public NERC standards-related PDF into a dynamic, source-grounded draft review package while preserving human control, traceability, and safe failure behavior.
@@ -22,7 +24,7 @@ These layers support the same product direction, but the current Streamlit page 
 2. Have one authorized public, searchable NERC standards-related PDF ready. A `CIP-010-5` or `CIP-007-6` PDF still works well for the assignment walkthrough.
 3. Use only the fictional organization and safe scope choices shown below. Do not enter real people, asset inventories, evidence, or operational information.
 4. Open these two diagrams in separate tabs so they can be shown briefly:
-   - `assets/cip-wayfinder-architecture.svg`
+   - `assets/cip-wayfinder-system-v4.svg` (current connected product flow and separate LangGraph panel)
    - `assets/cip-wayfinder-agent-communication.svg`
 5. If demonstrating email, use a test mailbox. Keep `.env`, API keys, SMTP credentials, and terminal environment output off screen.
 6. Keep a terminal open at the repository root with the verification commands near the end of this script ready to paste.
@@ -37,6 +39,8 @@ These layers support the same product direction, but the current Streamlit page 
 
 > CIP Wayfinder helps a utility compliance analyst understand an authorized NERC standards-related PDF and turn its source-grounded knowledge into draft controls and remediation guidance. It does not determine compliance, provide legal advice, or change an IT or operational-technology system. This demonstration uses local public sources and fictional scope information.
 
+Briefly add: “I used Codex to learn Python, implement small milestones, and generate tests. I reviewed the results and simplified the interface through repeated testing.”
+
 **Technical intention:** Establish the system's hard limits before showing automation. The local-first boundary is part of the design, not a disclaimer added after the fact.
 
 ### 0:25–0:55 — Explain the agent architecture
@@ -46,6 +50,8 @@ These layers support the same product direction, but the current Streamlit page 
 **Say:**
 
 > The architecture uses narrow specialist roles rather than one agent doing everything. They are deterministic Python functions and LangGraph nodes, not six paid model calls. The roles validate scope, retrieve cited requirements, draft controls, analyze synthetic evidence, explain risk, propose remediation, and pause for a human decision. Supporting Applicability and Quality Reviewer components ask for missing scope and check traceability.
+
+Use v4's updated diagram. Point out the Review Package Agent in the product path. The product Quality Reviewer is not a node in the synthetic graph. Do not describe each roster role as a separate LLM call.
 
 **Technical intention:** Show separation of responsibilities, typed handoffs, and least-authority design. Each role receives only the information needed for its task.
 
@@ -120,6 +126,8 @@ Now choose `Midwest Reliability Organization (MRO)` in Regional Entity and selec
 
 Now select **Approve package**, enter a fresh rationale, and apply the decision. Show **Download approved Word package** and the separate email form.
 
+Download and briefly open the Word result on screen. Do not send email during the submission demo; explain the second approval without making an external call. SMTP is configurable, not tied to Resend.
+
 **Say:**
 
 > Approval creates the Word package locally in memory; it is not compliance approval and sends no email. Download is immediate. Email is a second action with recipient validation, an attachment preview, and separate authorization before SMTP is called.
@@ -134,12 +142,14 @@ Now select **Approve package**, enter a fresh rationale, and apply the decision.
 
 ```powershell
 uv run python -m nerc_compliance_intelligence.review_graph
-uv run pytest tests/test_review_graph.py::test_empty_requirement_is_repaired_once_then_reaches_approval tests/test_review_graph.py::test_tool_error_retries_at_most_twice_then_safely_stops tests/test_review_graph.py::test_edit_routes_back_to_the_approval_interrupt_before_export tests/test_review_graph.py::test_reject_safely_stops_without_export -vv
+uv run pytest tests/test_review_graph.py -q
 ```
 
 **Say:**
 
 > LangGraph carries typed state and a thread ID through an in-memory checkpointer. Empty requirement retrieval gets one deterministic repair, tool errors get at most two retries, and unresolved problems stop safely. A real interrupt pauses for the human: edit returns to approval, reject exports nothing, and only approve reaches the synthetic local workflow store.
+
+Clarify: graph state is a TypedDict with Pydantic-validated records at boundaries. Graph tests include an actual approved synthetic export. They do not mean the Streamlit page executes every graph node.
 
 **Technical intention:** Demonstrate conditional routing, bounded loops, checkpointed resume, and a human interrupt before the only write-classified graph tool.
 
@@ -154,6 +164,8 @@ uv run python -m nerc_compliance_intelligence.evaluations
 ```
 
 Point to the 15 passing evaluations.
+
+Mention the final 2026-09-16 run: 167 tests and 15 offline evaluations passed. LangSmith is a disabled preview, not evidence of a live trace. These results do not measure real-model answer quality. Check `docs/submission-links.md` before filling the submission form.
 
 **Say:**
 

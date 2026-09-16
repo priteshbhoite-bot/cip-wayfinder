@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from nerc_compliance_intelligence.uploaded_standard import UploadedStandard
 
 
-CACHE_POLICY_VERSION = "nerc-requirement-part-controls-v5"
+CACHE_POLICY_VERSION = "nerc-complete-requirement-summaries-v6"
 DASHBOARD_CACHE_MAX_ENTRIES = 32
 
 

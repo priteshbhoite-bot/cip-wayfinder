@@ -33,7 +33,6 @@ _TABLE_TITLE = re.compile(
     re.IGNORECASE,
 )
 _TABLE_PART = re.compile(r"^\s*(?P<part>\d+\.\d+)(?!\.\d)\.?\s*$")
-MAX_REQUIREMENT_SUMMARY_CHARACTERS = 1_500
 
 
 class RequirementSourceBlock(BaseModel):
@@ -75,7 +74,7 @@ def _without_page_noise(text: str) -> str:
 
 
 def summarize_requirement_text(text: str, requirement_reference: str) -> str:
-    """Create a bounded, plain-language synopsis from one requirement block."""
+    """Create readable wording without cutting parts of the bounded source block."""
     cleaned = _without_page_noise(text).replace("�", " ")
     cleaned = re.sub(
         rf"(?i)^\s*{re.escape(requirement_reference)}\s*\.\s*",
@@ -105,13 +104,8 @@ def summarize_requirement_text(text: str, requirement_reference: str) -> str:
             end = parts[index + 1].start() if index + 1 < len(parts) else len(cleaned)
             part_text = cleaned[part.end() : end].strip(" ;:")
             part_text = re.sub(r"(?:;?\s+(?:and|or))$", "", part_text, flags=re.IGNORECASE)
-            if len(part_text) > 220:
-                part_text = part_text[:219].rsplit(" ", 1)[0] + "…"
             summarized_parts.append(f"{part.group('label')}: {part_text}")
         cleaned = f"{main_statement} Key parts: {'; '.join(summarized_parts)}"
-    if len(cleaned) > MAX_REQUIREMENT_SUMMARY_CHARACTERS:
-        shortened = cleaned[: MAX_REQUIREMENT_SUMMARY_CHARACTERS - 1].rsplit(" ", 1)[0]
-        cleaned = f"{shortened}…"
     return cleaned.strip() or f"Review {requirement_reference} in the cited source section."
 
 

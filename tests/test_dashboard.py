@@ -145,8 +145,8 @@ def test_requirement_section_shows_summary_and_official_extracted_language() -> 
     assert "Plain-language summary" in app_source
     assert "verify it against the official text below" in app_source
     assert "Official requirement text" in app_source
-    assert "st.code(official_requirement, language=None, wrap_lines=False)" in app_source
-    assert "Scroll horizontally to review the complete source text" in app_source
+    assert 'st.text(official_requirement, width="stretch")' in app_source
+    assert "Scroll horizontally to review the complete source text" not in app_source
     assert "height=240" not in app_source
 
 

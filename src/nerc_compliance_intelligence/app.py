@@ -573,9 +573,9 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     official_requirement = _official_requirement_text(source_chunks, knowledge_item)
                     if official_requirement:
                         st.markdown("**Official requirement text**")
-                        st.code(official_requirement, language=None, wrap_lines=False)
+                        st.text(official_requirement, width="stretch")
                         st.caption(
-                            "Extracted from the locally read PDF. Scroll horizontally to review the complete source text."
+                            "Extracted from the locally read PDF. Text wraps to fit the available width."
                         )
         st.caption("Use each citation to verify the official NERC requirement before relying on any draft guidance.")
 
@@ -596,7 +596,7 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     identity_column, domain_column = st.columns([2, 3])
                     with identity_column:
                         st.markdown("**Draft control ID**")
-                        st.code(control.control_id, language=None)
+                        st.text(control.control_id, width="stretch")
                     with domain_column:
                         st.markdown("**Control domain**")
                         st.text(knowledge_item.domain)
@@ -631,18 +631,16 @@ def _render_review_package(data: dict[str, Any]) -> None:
                         "Corrective action",
                         "Validation and closure",
                     )
-                    st.dataframe(
-                        [
-                            {
-                                "stage": remediation_stages[step.step_number - 1],
-                                "action": step.action.text,
-                                "owner": step.owner_role.text,
-                                "decision and closure": f"{step.decision.text} {step.end_state.text}",
-                            }
-                            for step in remediation.steps
-                        ],
-                        hide_index=True,
-                    )
+                    for step in remediation.steps:
+                        st.markdown(f"**Step {step.step_number}: {remediation_stages[step.step_number - 1]}**")
+                        for label, value in (
+                            ("Action", step.action.text),
+                            ("Owner", step.owner_role.text),
+                            ("Decision", step.decision.text),
+                            ("End state", step.end_state.text),
+                        ):
+                            st.markdown(f"**{label}**")
+                            st.text(value, width="stretch")
                     st.markdown("**SME tailoring question**")
                     st.text(control.tailoring_questions[0].text)
                     st.caption(

@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-09-16 — Preserve complete Key parts wording
+
+- Remove 220-character part clipping and the 1,500-character overall requirement-summary clipping. Extraction remains bounded to the same requirement source block.
+- Invalidate older dashboard/session data so re-uploading regenerates complete wording; source citations and human approval remain unchanged.
+- Add a regression covering long nested parts and preservation of the final part.
+
+## 2026-09-16 — Readable Review package text
+
+- Replace non-wrapping requirement code blocks with native literal, width-fitting text so uploaded content is not interpreted as HTML or Markdown.
+- Replace the wide remediation table with ordered, labeled full-text fields. Keep source content, drafting logic, and approval boundaries unchanged.
+- Verify long text and all remediation fields through offline Streamlit rendering regression tests.
+
 ## 2026-08-26 — Milestone 1 foundation
 
 - Use a minimal Python project with pytest for automated checks.
@@ -327,6 +339,10 @@
 - Remove asset scope from the upload-flow readiness contract and Word metadata while retaining asset-specific tailoring questions inside draft controls.
 - Keep the separate LangGraph demonstration's selected synthetic asset ID unchanged.
 ## 2026-09-16 — Submission-only verification
+
+The v4 system diagram was subsequently redrawn in the connected v3 visual style. Source fallback, Review Package Agent, structural quality review, valid-package approval, and separate SMTP consent appear in the product flow; synthetic LangGraph state/recovery/interrupt/export appear in an isolated panel. This is a documentation correction only.
+
+The subsequent v4 documentation refresh preserves v3, corrects the roster/intake/source/state descriptions, updates diagrams and test evidence, and verifies public GitHub and existing Drive-video landing-page access. Video content/duration, a final Google Doc URL, and the submission form remain unverified. No application behavior changed and no external publication was performed in that refresh.
 
 - Verified 167 tests, 15 offline evaluations, dependency compatibility, initial Streamlit rendering, health, diff formatting and common credential patterns.
 - Corrected demo instructions and added coding-prompt examples. Did not add Excel automation or change application behavior.

@@ -1,6 +1,21 @@
 """Tests for bounded extraction from a NERC Requirements and Measures section."""
 
 from nerc_compliance_intelligence.requirement_extraction import extract_requirement_blocks
+from nerc_compliance_intelligence.requirement_extraction import summarize_requirement_text
+
+
+def test_key_parts_keep_complete_long_paragraphs_and_final_part() -> None:
+    first_part = "Prior to implementing a change, test the change. " * 40
+    final_part = "Document the complete result and obtain review."
+    summary = summarize_requirement_text(
+        f"R1.2. Each Responsible Entity shall test changes. 1.2.1. {first_part}"
+        f"1.2.2. {final_part}",
+        "R1.2",
+    )
+    assert len(summary) > 1500
+    assert first_part.strip() in summary
+    assert f"1.2.2: {final_part}" in summary
+    assert "…" not in summary
 
 
 def test_requirements_are_split_across_pages_and_stop_at_measures_and_compliance() -> None:

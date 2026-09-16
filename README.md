@@ -4,6 +4,14 @@
 
 ## Final review guide
 
+Requirement summaries retain complete Key parts paragraphs, without character-limit ellipses. After updating from an older version, upload the PDF again to rebuild any shortened session data.
+
+Review package source text wraps to the available width. Remediation steps appear as full-text Action, Owner, Decision, and End state fields instead of clipped table cells; expand a requirement or control to read its details.
+
+The [v4 connected system architecture](assets/cip-wayfinder-system-v4.svg) shows the current product workflow and a separate synthetic LangGraph panel. It supersedes the older combined-flow diagram for submission use.
+
+For the v4 document refresh, see the [updated demo script](docs/demo-script.md) and [submission link verification](docs/submission-links.md). The existing Drive video is accessible, but its duration and alignment with the current app still need review.
+
 Latest verified submission status: [final readiness check](docs/final-readiness-check.md). The 2026-09-16 check passed 167 tests and 15 offline evaluations. Submission still requires the final Google Doc, live app-demo video, current GitHub code, and submission form. The Excel walkthrough is not the required live app demo.
 
 Start here for product review and local use:
