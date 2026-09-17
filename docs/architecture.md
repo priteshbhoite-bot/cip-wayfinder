@@ -1,5 +1,11 @@
 # Final Local MVP Architecture
 
+## Product draft revisions
+
+The Streamlit product has a separate session-only SME editor. Needs editing blocks delivery, opens a requirement/field selector and requires an explained save. Only existing draft control/remediation text can change; sources, IDs, date metadata and step ordering remain protected. Pydantic validation and structural quality review run after each save. Finish editing returns to review without granting approval.
+
+Private revised package JSON and before/after history are overlaid on, never written into, cached generated data. New upload, scope or base content resets the overlay. Attachment approval is bound to the complete package and intake; edits clear the attachment, receipt and separate email consent. Session history is temporary, not a durable audit trail. The synthetic graph's own edit/interrupt route is unchanged.
+
 ## Purpose
 
 This is a local, deterministic graph for a fictional review. It uses fake agents and the nine tools from Milestone 4. The current dashboard and tests use synthetic data by default. When an explicitly supplied, approved local NERC corpus is used, retrieval preserves local provenance metadata; it does not crawl the web. The MVP does not declare compliance, provide legal advice, connect to external systems, or change operational controls.

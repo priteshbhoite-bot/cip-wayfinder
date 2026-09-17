@@ -1,5 +1,13 @@
 # Decision Log
 
+## 2026-09-17 — SME draft revision workflow
+
+- Turn Needs editing into a session-only revision workflow: select requirement and existing draft field, explain the change, save, then finish editing and review before fresh approval.
+- Allow only existing control/remediation text fields. Preserve official source wording, IDs, citations, metadata, draft flags and step ordering; validate the resulting package and rerun quality review.
+- Keep before/after text and feedback in the private session, never the shared generated-data cache. Clear edits when the upload or scope changes; this is not durable case storage.
+- Block delivery while editing. Invalidate old attachments and email consent; bind new approval to the complete revised package and intake.
+- Retain the separate synthetic LangGraph edit branch unchanged. No model call, external write or GitHub publication is part of this change.
+
 ## 2026-09-17 — Connect the supplied requirement-date reference
 
 - Extract only tables with named Effective Date of Requirement and Effective Date of Part columns from the supplied 121-page CIP reference export. Require all 596 declared row IDs exactly once; fail on unknown date syntax or malformed headers.

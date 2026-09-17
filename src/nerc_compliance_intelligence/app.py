@@ -18,10 +18,11 @@ from nerc_compliance_intelligence.control_remediation import ControlGenerationIn
 from nerc_compliance_intelligence.local_corpus import LocalCorpusStore, RequirementChunk, RetrievalQuery, chunk_to_mapping
 from nerc_compliance_intelligence.email_delivery import EmailDeliveryError, WordEmailRequest, load_email_delivery_settings, send_word_package_email, validate_email_address
 from nerc_compliance_intelligence.package_export import WORD_MIME_TYPE, ExportDecision, build_review_package_export, render_review_package_docx
+from nerc_compliance_intelligence.package_revision import DraftRevision, dashboard_with_revision, editable_fields, revise_package
 from nerc_compliance_intelligence.reference_options import load_nerc_reference_options
 from nerc_compliance_intelligence.providers import load_local_provider_environment
 from nerc_compliance_intelligence.quality_review import review_source_grounded_package
-from nerc_compliance_intelligence.review_package_agent import REVIEW_PACKAGE_OBJECTIVE, ReviewPackageAgentInput, ReviewPackageAgentItem, run_review_package_agent
+from nerc_compliance_intelligence.review_package_agent import REVIEW_PACKAGE_OBJECTIVE, ReviewPackageAgentInput, ReviewPackageAgentItem, ReviewPackageAgentOutput, run_review_package_agent
 from nerc_compliance_intelligence.uploaded_standard import UploadValidationError, UploadedRequirementOption, UploadedStandard, analyze_uploaded_standard, validate_uploaded_standard
 
 
@@ -237,6 +238,10 @@ def _initialize_session() -> None:
             "approved_package_context_key",
             "email_delivery_receipt",
             "seen_dashboard_cache_keys",
+            "review_revision_base",
+            "review_revision_json",
+            "review_revision_history",
+            "review_edit_pending",
         ):
             st.session_state.pop(stale_key, None)
         st.session_state.document_knowledge_version = CACHE_POLICY_VERSION
@@ -372,6 +377,7 @@ def _render_upload_conversation() -> None:
                     st.write(f"- {question}")
                 return
             st.session_state.uploaded_standard = uploaded
+            _clear_revision_session()
             st.session_state.selected_analysis = "Understand the requirement"
             st.session_state.last_analysis_choice = "Understand the requirement"
             st.session_state.decision_preview = None
@@ -416,6 +422,7 @@ def _render_chat(uploaded_standard: UploadedStandard) -> None:
         on_click=_open_review_workspace,
     )
     if st.button("Clear local session document", icon=":material/delete_sweep:"):
+        _clear_revision_session()
         st.session_state.uploaded_standard = None
         st.session_state.selected_analysis = None
         st.session_state.last_analysis_choice = None
@@ -439,6 +446,7 @@ def _package_context_key(data: dict[str, Any]) -> str:
         {
             "dashboard_key": dashboard_cache_key(data["uploaded"], APPROVED_CORPUS_INDEX),
             "assessment": assessment.model_dump(mode="json") if isinstance(assessment, CaseIntakeAssessment) else None,
+            "package": data["review_package_agent"].model_dump(mode="json"),
         },
     )
 
@@ -449,6 +457,8 @@ def _prepare_approved_word_package(
     rationale: str,
 ) -> None:
     """Create one in-memory Word attachment only after package approval."""
+    if st.session_state.get("review_edit_pending") or not data["quality_review"].is_valid:
+        raise ValueError("Finish editing and pass quality review before creating an attachment.")
     assessment = st.session_state.get("case_intake_assessment")
     decision = ExportDecision(
         reviewer_role=reviewer_role,
@@ -497,8 +507,100 @@ def _requirement_source_line(source_chunks: list[RequirementChunk]) -> str:
     return f"Source: {'; '.join(unique_locations)} | retrieved {', '.join(retrieval_dates)}"
 
 
+def _clear_package_delivery() -> None:
+    """Invalidate the attachment and separate send consent after a revision."""
+    for key in ("approved_package_bytes", "approved_package_file_name",
+                "approved_package_context_key", "email_delivery_receipt"):
+        st.session_state[key] = None
+    st.session_state.approved_package_send_authorization = False
+
+
+def _clear_revision_session() -> None:
+    """Discard private edits when the reviewer replaces or clears the upload."""
+    for key in ("review_revision_base", "review_revision_json", "review_edit_start"):
+        st.session_state.pop(key, None)
+    st.session_state.review_revision_history = []
+    st.session_state.review_edit_pending = False
+    for key in list(st.session_state):
+        if key.startswith("revision_"):
+            st.session_state.pop(key, None)
+
+
+def _session_review_data(data: dict[str, Any]) -> dict[str, Any]:
+    """Bind private revisions to one exact generated package and intake."""
+    base = _package_context_key(data)
+    if st.session_state.get("review_revision_base") != base:
+        _clear_revision_session()
+        st.session_state.review_revision_base = base
+        st.session_state.review_revision_json = None
+        st.session_state.review_revision_history = []
+        st.session_state.review_edit_pending = False
+        st.session_state.decision_preview = None
+        _clear_package_delivery()
+    revision_json = st.session_state.get("review_revision_json")
+    if revision_json:
+        return dashboard_with_revision(data, ReviewPackageAgentOutput.model_validate_json(revision_json))
+    return data
+
+
+def _render_revision_editor(data: dict[str, Any]) -> None:
+    """Save one explained field change at a time, then return to human review."""
+    st.subheader("Revise the draft", anchor=False)
+    st.caption("Only draft wording can change. Requirement text, IDs, citations and dates are protected. Use fictional roles and public information only. Changes stay in this session, not the shared cache or a model.")
+    st.caption("Save each change before switching fields or finishing. A save does not approve the package.")
+    package = data["review_package_agent"]
+    items = {item.mapping.requirement_reference: item for item in package.items}
+    requirement = st.selectbox("Requirement to revise", list(items), key="revision_requirement")
+    if requirement not in items:
+        st.error("Select an existing requirement.")
+        return
+    fields = editable_fields(items[requirement])
+    # A requirement-specific key avoids stale selections when switching items.
+    field = st.selectbox("Draft field", list(fields), format_func=lambda value: fields.get(value, ("Invalid field", ""))[0],
+                         key=f"revision_field_{requirement}")
+    if field not in fields:
+        st.error("Select an editable draft field.")
+        return
+    history = st.session_state.get("review_revision_history", [])
+    key = stable_fingerprint("revision-editor", [st.session_state.review_revision_base, len(history), requirement, field])
+    with st.form(f"revision_form_{key}"):
+        st.text("Current draft: " + fields[field][1], width="stretch")
+        revised_text = st.text_area("Revised draft text", value=fields[field][1], key=f"revision_text_{key}", height=180)
+        feedback = st.text_area("Why is this change needed?", key=f"revision_feedback_{key}", max_chars=1000)
+        saved = st.form_submit_button("Save revision", type="primary")
+    if saved:
+        try:
+            if len(history) >= 100:
+                raise ValueError("This session has reached its 100-revision limit.")
+            revision = DraftRevision(requirement=requirement, field=field, text=revised_text,
+                feedback=feedback, reviewer_role=st.session_state.decision_preview["reviewer_role"])
+            revised = revise_package(package, revision)
+        except ValidationError:
+            st.error("Provide nonblank draft text (up to 12,000 characters), feedback and a reviewer role.")
+        except ValueError as error:
+            st.error(str(error))
+        else:
+            st.session_state.review_revision_json = revised.model_dump_json()
+            st.session_state.review_revision_history = [*history, {
+                **revision.model_dump(), "before": fields[field][1],
+                "recorded_at": datetime.now(timezone.utc).isoformat(),
+            }]
+            _clear_package_delivery()
+            st.rerun()
+    saved_this_round = len(history) > st.session_state.get("review_edit_start", len(history))
+    if saved_this_round:
+        st.success("Revision saved. You can change another field or finish editing and review the updated package.")
+    if st.button("Finish editing and review", disabled=not saved_this_round):
+        if saved_this_round and data["quality_review"].is_valid:
+            st.session_state.review_edit_pending = False
+            st.session_state.decision_preview = None
+            _clear_package_delivery()
+            st.rerun()
+
+
 def _render_review_package(data: dict[str, Any]) -> None:
     """Show the essential review content in three progressive sections."""
+    data = _session_review_data(data)
     uploaded, packages = data["uploaded"], data["packages"]
     st.subheader("Review package")
     agent_output = data["review_package_agent"]
@@ -638,7 +740,7 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     st.text(control.objective.text)
                     st.markdown("**Required control activities**")
                     for activity in control.activities:
-                        st.write(f"- {activity.activity.text}")
+                        st.text(f"- {activity.activity.text}", width="stretch")
                     owner_column, frequency_column = st.columns(2)
                     with owner_column:
                         st.markdown("**Owner and performer**")
@@ -681,7 +783,7 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     )
         st.warning("Potential gaps and remediation steps are review observations, not compliance conclusions or automatic closures.", icon=":material/person_check:")
 
-    with st.expander("Human decision", expanded=False, icon=":material/person_check:"):
+    with st.expander("Human decision", expanded=bool(st.session_state.get("review_edit_pending")), icon=":material/person_check:"):
         st.write("Make a decision on the draft package you can see above. Approval prepares a Word attachment; it does not send email, declare compliance, or implement a control.")
         st.info("Word formatting is created locally from the reviewed package and does not require a model call.")
         with st.form("package_export_decision_form"):
@@ -697,6 +799,8 @@ def _render_review_package(data: dict[str, Any]) -> None:
             allowed_decisions = {"Approve package", "Needs editing", "Reject"}
             if decision_label not in allowed_decisions or not reviewer_role.strip() or not decision_notes.strip():
                 st.error("Choose a valid decision and provide both reviewer role and rationale.")
+            elif decision_label == "Approve package" and st.session_state.get("review_edit_pending"):
+                st.error("Save a revision and finish editing before approving the updated package.")
             elif decision_label == "Approve package" and not quality_review.is_valid:
                 st.error("The package failed structural quality checks and cannot be approved.")
             else:
@@ -705,10 +809,13 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     "reviewer_role": reviewer_role.strip(),
                     "rationale": decision_notes.strip(),
                 }
-                st.session_state.approved_package_bytes = None
-                st.session_state.approved_package_file_name = None
-                st.session_state.approved_package_context_key = None
-                st.session_state.email_delivery_receipt = None
+                _clear_package_delivery()
+                if decision_label == "Needs editing":
+                    if not st.session_state.get("review_edit_pending"):
+                        st.session_state.review_edit_start = len(st.session_state.review_revision_history)
+                    st.session_state.review_edit_pending = True
+                else:
+                    st.session_state.review_edit_pending = False
                 if decision_label == "Approve package":
                     _prepare_approved_word_package(data, reviewer_role.strip(), decision_notes.strip())
                 st.rerun()
@@ -718,14 +825,25 @@ def _render_review_package(data: dict[str, Any]) -> None:
             if preview.get("decision") == "Approve package":
                 st.success(f"Package approved by {preview['reviewer_role']}. It is ready to download or email; this is not a compliance approval.")
             elif preview.get("decision") == "Needs editing":
-                st.warning("The package was returned for editing. No attachment was created or sent.")
+                st.warning("Editing is in progress. Download and email are blocked until revisions are saved, reviewed and approved again.")
             else:
                 st.error("The draft package was rejected. No attachment was created or sent.")
 
+        if st.session_state.get("review_edit_pending"):
+            _render_revision_editor(data)
+        history = st.session_state.get("review_revision_history", [])
+        if history:
+            st.caption(f"{len(history)} SME revision(s) saved in this session. These are reviewer-authored drafts, not new source claims.")
+            with st.expander("Saved revision history"):
+                for number, change in enumerate(history, 1):
+                    st.text(f"Revision {number}: {change['requirement']} | {change['field']} | {change['reviewer_role']}")
+                    st.text(f"Feedback: {change['feedback']}\nBefore: {change['before']}\nAfter: {change['text']}", width="stretch")
         package_bytes = st.session_state.get("approved_package_bytes")
         package_name = st.session_state.get("approved_package_file_name")
         package_context = st.session_state.get("approved_package_context_key")
-        if isinstance(package_bytes, bytes) and isinstance(package_name, str):
+        if (isinstance(package_bytes, bytes) and isinstance(package_name, str)
+                and not st.session_state.get("review_edit_pending")
+                and isinstance(preview, dict) and preview.get("decision") == "Approve package"):
             if package_context != _package_context_key(data):
                 st.warning("The review content changed after approval. Apply a new package decision before downloading or emailing it.")
             else:

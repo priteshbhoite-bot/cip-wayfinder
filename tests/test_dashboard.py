@@ -181,9 +181,10 @@ def test_review_package_sections_and_requirement_details_start_collapsed() -> No
     for section_name in (
         "Requirements and sources",
         "Draft controls and remediation",
-        "Human decision",
     ):
         assert f'st.expander("{section_name}", expanded=False' in app_source
+    # Human decision starts collapsed, but opens while the SME is editing.
+    assert 'expanded=bool(st.session_state.get("review_edit_pending"))' in app_source
     assert "mapping.requirement_reference," in app_source
     assert "value=False" in app_source
     assert "if show_requirement:" in app_source

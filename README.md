@@ -4,6 +4,14 @@
 
 ## Final review guide
 
+Final submission artifacts: [Word submission](docs/submission/CIP-Wayfinder-Submission-SME-Revision.docx) and [architecture diagram](docs/submission/CIP-Wayfinder-Architecture-SME-Revision.png). The document records the pre-publication review snapshot; this release adds that reviewed SME editor to the repository.
+
+### Revise a draft before approval
+
+In Human decision, select **Needs editing**, enter your reviewer role and rationale, and apply the decision. Select a requirement and draft field, enter revised wording plus feedback, and choose **Save revision**. Repeat for other fields, then **Finish editing and review**. Inspect the updated package and make a new approval decision before download or email.
+
+Only control and remediation draft text is editable. Source text, citations, requirement IDs, date metadata and step ordering are protected. Each save reruns structural quality checks and clears the previous attachment and email consent. Revision history records feedback and before/after text within the session; it is not a durable audit log. Edits are not sent to models or put in the shared cache. Clearing/replacing the upload or changing scope discards revisions. Use public or fictional context only.
+
 The Review package summary shows Knowledge items, Standard effective date, and Draft controls. The date card uses the supplied U.S. effective-date reference, matched to the exact catalog version. Shared dates appear directly; phased, incomplete, or annotated dates have explicit review labels. The source document and pages appear directly beneath the date. Individual requirement dates and citations remain within Requirements and sources; there is no separate effective-date section. These are source-snapshot values, not live regulatory verification. See [effective-date integration](docs/effective-date-integration.md).
 
 Cloud uploads can now match a packaged approved-source fingerprint catalog covering 24 exact CIP versions across CIP-002 through CIP-015, without access to the local PDF corpus. See [CIP source catalog coverage and limits](docs/cip-source-catalog.md). This is not an exhaustive list of historical, future, or currently effective standards. Unknown documents still require source verification; the app does not fetch documents during uploads.
