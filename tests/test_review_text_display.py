@@ -3,6 +3,21 @@
 from streamlit.testing.v1 import AppTest
 
 
+def test_verified_effective_date_displays_with_scope_and_source() -> None:
+    app = AppTest.from_string('''
+from nerc_compliance_intelligence.app import demo_dashboard_data, _render_review_package
+from nerc_compliance_intelligence.source_catalog import EffectiveDateInfo
+data = demo_dashboard_data()
+info = EffectiveDateInfo(date="2030-01-01", jurisdiction="Synthetic test jurisdiction", source_reference="Synthetic plan, section 2")
+data["uploaded"] = data["uploaded"].model_copy(update={"effective_date_info": info})
+_render_review_package(data)
+''', default_timeout=30).run()
+    assert not app.exception
+    assert app.metric[1].label == "Standard effective date"
+    assert app.metric[1].value == "2030-01-01"
+    assert any("Synthetic test jurisdiction" in item.value and "Synthetic plan, section 2" in item.value for item in app.text)
+
+
 def test_review_details_render_complete_text_without_code_blocks_or_tables() -> None:
     script = '''
 import streamlit as st
@@ -18,6 +33,8 @@ _render_review_package(data)
 '''
     app = AppTest.from_string(script, default_timeout=30).run()
     assert not app.exception
+    assert [metric.label for metric in app.metric] == ["Knowledge items", "Standard effective date", "Draft controls"]
+    assert app.metric[1].value == "Not verified"
     displayed = [element.value for element in app.text]
     assert "Long source sentence. " * 100 + "<b>literal ending</b>" in displayed
     assert not app.dataframe

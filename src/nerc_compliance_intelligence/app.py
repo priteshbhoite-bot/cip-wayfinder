@@ -8,6 +8,7 @@ from time import sleep
 from typing import Any
 
 import streamlit as st
+from nerc_compliance_intelligence.effective_dates import date_summary
 from pydantic import ValidationError
 
 from nerc_compliance_intelligence.case_intake import CaseIntake, CaseIntakeAssessment, assess_case_intake
@@ -506,9 +507,32 @@ def _render_review_package(data: dict[str, Any]) -> None:
     if quality_review.is_valid:
         st.caption("Quality Reviewer: structural traceability checks passed; warnings still require SME attention.")
     st.caption("Read cited sources, inspect draft guidance, then make a human decision.")
-    requirements, matched_sources, controls = st.columns(3)
+    requirements, effective_date, controls = st.columns(3)
     requirements.metric("Knowledge items", len(packages))
-    matched_sources.metric("Corpus matches", data["local_source_match_count"])
+    date_info = uploaded.effective_date_info
+    schedule = uploaded.effective_date_schedule
+    schedule_summary = date_summary(schedule) if schedule else None
+    summary_label = {
+        "Multiple effective dates": "Multiple dates",
+        "Incomplete dates": "Incomplete",
+        "Review date notes": "Review notes",
+    }.get(schedule_summary, schedule_summary)
+    effective_date.metric(
+        "Standard effective date",
+        summary_label if schedule else (date_info.date.isoformat() if date_info else "Not verified"),
+        help="For the exact uploaded standard/version, as reported by the supplied jurisdiction-specific reference. This is not a live regulatory check. Publication, approval, and retrieval dates are not substituted.",
+    )
+    if schedule:
+        source_pages = ", ".join(str(page) for page in sorted({row.page for row in schedule.rows}))
+        effective_date.text(
+            f"Source: {schedule.source_name} — page(s) {source_pages}",
+            width="stretch",
+        )
+        effective_date.caption(f"{schedule.jurisdiction} · supplied reference snapshot")
+        if summary_label != schedule_summary:
+            effective_date.caption(schedule_summary)
+    elif date_info:
+        effective_date.text(f"Jurisdiction: {date_info.jurisdiction}\nSource: {date_info.source_reference}")
     controls.metric("Draft controls", len(packages))
     referenced_labels = ", ".join(
         f"{item.standard_id}-{item.version}" for item in uploaded.referenced_standards
@@ -555,6 +579,14 @@ def _render_review_package(data: dict[str, Any]) -> None:
                     key=f"requirement_source_{mapping.requirement_reference}",
                 )
                 if show_requirement:
+                    if schedule:
+                        dated_rows = [row for row in schedule.rows if not row.no_parts and (
+                            row.requirement == mapping.requirement_reference or row.requirement.startswith(mapping.requirement_reference + ".")
+                        )]
+                        for row in dated_rows:
+                            st.text(f"{row.requirement} effective date (U.S.): {row.part_date or row.requirement_date or 'Not specified'} | {row.status} | Source note: {row.source_note or 'None'} | {schedule.source_name}, page {row.page}, row {row.row_id}")
+                        if not dated_rows:
+                            st.caption("Effective date: no matching requirement row in the supplied reference.")
                     domain_column, source_column = st.columns([2, 3])
                     with domain_column:
                         st.markdown("**Domain**")

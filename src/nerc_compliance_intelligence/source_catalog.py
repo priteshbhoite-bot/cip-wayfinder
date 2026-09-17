@@ -5,10 +5,20 @@ from hashlib import sha256
 from pathlib import Path
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from nerc_compliance_intelligence.effective_dates import EffectiveDateSchedule
 
 
 CATALOG_PATH = Path(__file__).with_name("cip_source_catalog.json")
+
+
+class EffectiveDateInfo(BaseModel):
+    """A reviewed date and its scope; never a publication or retrieval date."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    date: date
+    jurisdiction: str = Field(min_length=1)
+    source_reference: str = Field(min_length=1)
 
 
 class CatalogDocument(BaseModel):
@@ -23,6 +33,14 @@ class CatalogDocument(BaseModel):
     fingerprinted_on: date
     approval_basis: str = "Previously approved local corpus; remote bytes not reverified"
     enforcement_status: str = "Not assessed; verify for the relevant jurisdiction and date"
+    effective_date_info: EffectiveDateInfo | None = None
+    effective_date_schedule: EffectiveDateSchedule | None = None
+
+    @model_validator(mode="after")
+    def require_matching_schedule_version(self) -> "CatalogDocument":
+        if self.effective_date_schedule and self.effective_date_schedule.standard_version != f"{self.standard_id}-{self.version}":
+            raise ValueError("effective-date schedule must match the exact catalog version")
+        return self
 
     @field_validator("source_url")
     @classmethod

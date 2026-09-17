@@ -20,7 +20,8 @@ from pypdf import PdfReader
 from nerc_compliance_intelligence.local_corpus import PdfCorpusManifest
 from nerc_compliance_intelligence.requirement_extraction import extract_requirement_blocks
 from nerc_compliance_intelligence.schemas import RequirementMapping, StandardVersion
-from nerc_compliance_intelligence.source_catalog import match_catalog_document
+from nerc_compliance_intelligence.source_catalog import EffectiveDateInfo, match_catalog_document
+from nerc_compliance_intelligence.effective_dates import EffectiveDateSchedule
 
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -86,6 +87,8 @@ class UploadedStandard(BaseModel):
     source_type: str = "content-validated NERC-associated local PDF"
     stored_persistently: bool = False
     verified_source_url: str | None = None
+    effective_date_info: EffectiveDateInfo | None = None
+    effective_date_schedule: EffectiveDateSchedule | None = None
 
 
 class UploadedRequirementOption(BaseModel):
@@ -476,6 +479,8 @@ def validate_uploaded_standard(
         referenced_standards=normalized_standards,
         nerc_identity_signals=identity_signals,
         verified_source_url=catalog_match.source_url if catalog_match else None,
+        effective_date_info=catalog_match.effective_date_info if catalog_match else None,
+        effective_date_schedule=catalog_match.effective_date_schedule if catalog_match else None,
         source_type="approved public CIP catalog fingerprint" if catalog_match else "content-validated NERC-associated local PDF",
     )
 

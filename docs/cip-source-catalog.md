@@ -65,6 +65,10 @@ No website publication or deployment was performed by this implementation.
 
 ## Verification results
 
+The catalog now also carries exact-version U.S. requirement-date schedules from
+the user-supplied reference export. See [effective-date integration](effective-date-integration.md)
+for provenance, display rules, and limitations. Dates are not live regulatory checks.
+
 - Full offline suite: 196 passed.
 - Offline evaluations: 15/15 passed, tracing disabled.
 - Manual cloud-path check: all 24 approved real PDFs matched the packaged catalog,

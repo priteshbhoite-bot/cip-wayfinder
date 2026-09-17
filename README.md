@@ -4,6 +4,8 @@
 
 ## Final review guide
 
+The Review package summary shows Knowledge items, Standard effective date, and Draft controls. The date card uses the supplied U.S. effective-date reference, matched to the exact catalog version. Shared dates appear directly; phased, incomplete, or annotated dates have explicit review labels. The source document and pages appear directly beneath the date. Individual requirement dates and citations remain within Requirements and sources; there is no separate effective-date section. These are source-snapshot values, not live regulatory verification. See [effective-date integration](docs/effective-date-integration.md).
+
 Cloud uploads can now match a packaged approved-source fingerprint catalog covering 24 exact CIP versions across CIP-002 through CIP-015, without access to the local PDF corpus. See [CIP source catalog coverage and limits](docs/cip-source-catalog.md). This is not an exhaustive list of historical, future, or currently effective standards. Unknown documents still require source verification; the app does not fetch documents during uploads.
 
 Requirement summaries retain complete Key parts paragraphs, without character-limit ellipses. After updating from an older version, upload the PDF again to rebuild any shortened session data.

@@ -1,5 +1,24 @@
 # Decision Log
 
+## 2026-09-17 — Connect the supplied requirement-date reference
+
+- Extract only tables with named Effective Date of Requirement and Effective Date of Part columns from the supplied 121-page CIP reference export. Require all 596 declared row IDs exactly once; fail on unknown date syntax or malformed headers.
+- Preserve requirement/part dates, inactive dates, statuses, source notes, page/row citations, U.S. scope, and source fingerprint. Do not use regulatory-order, filing, adoption, or retrieval dates as effective dates.
+- Match schedules by exact standard/version to the 24 approved catalog entries, then attach them only to matching uploaded bytes. Do not substitute neighboring versions.
+- Show one date only when the listed dates agree and are complete. Expose phased dates, missing dates, and DO NOT USE annotations explicitly. Regional Entity selection does not convert U.S. dates into another jurisdiction's applicability.
+- Package metadata for cloud use without publishing the source PDF. Bump session/cache policy; no runtime network call, deployment, or GitHub publication.
+
+## 2026-09-17 — Standard effective date summary card
+
+- Replace the removed Corpus matches position with Standard effective date between the two existing counts.
+- Carry optional reviewed date, jurisdiction, and source reference from the exact fingerprint-matched catalog record. Show Not verified when absent; never substitute a retrieval, publication, or approval date.
+- Current catalog dates remain unpopulated pending source verification. Bump session/cache metadata version. This does not determine applicability or effective dates from Regional Entity selection.
+
+## 2026-09-17 — Remove the Corpus matches display
+
+- Remove the local retrieval counter from Review package and use two summary columns for Knowledge items and Draft controls.
+- Keep retrieval, catalog verification, citations, and approval behavior unchanged. Verify rendered metric labels with the offline Streamlit test.
+
 ## 2026-09-17 — Portable CIP source verification
 
 - Package SHA-256 fingerprints and official source URLs for all 24 PDFs already approved in the local manifest, covering CIP-002 through CIP-015. Do not publish PDF contents or the local database.
@@ -385,3 +404,9 @@ The subsequent v4 documentation refresh preserves v3, corrects the roster/intake
 - Render PDF wording with Streamlit's literal text element so source content is not interpreted as Markdown and no fixed-height text area creates excess whitespace.
 - Retain a bounded requirement source block for content-validated uploads without a corpus match, while continuing to omit raw PDF bytes and unrelated document text from shared cache state.
 - Use the same extracted requirement wording in the Word package fallback path and bump the cache/session policy to `nerc-requirement-source-text-v4`.
+
+## Inline effective-date citation
+
+- Place the source document and page numbers directly beneath Standard effective date.
+- Remove the separate effective-date details expander; keep requirement dates in Requirements and sources.
+- Preserve catalog data, date calculation rules, and the jurisdiction/snapshot notice.

@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from nerc_compliance_intelligence import uploaded_standard as uploads
 from nerc_compliance_intelligence.source_catalog import (
-    CATALOG_PATH, CatalogDocument, SourceCatalog, match_catalog_document,
+    CATALOG_PATH, CatalogDocument, EffectiveDateInfo, SourceCatalog, match_catalog_document,
 )
 from test_uploaded_standard import _pdf_bytes
 
@@ -57,10 +57,15 @@ def test_cloud_upload_without_corpus_preserves_version_parts_and_citation(
         nerc_metadata=False,
     )
     approved = entry(raw, standard_id, version)
+    approved = approved.model_copy(update={"effective_date_info": EffectiveDateInfo(
+        date=date(2030, 1, 1), jurisdiction="Synthetic test jurisdiction",
+        source_reference="Synthetic implementation plan, section 2",
+    )})
     monkeypatch.setattr(uploads, "match_catalog_document", lambda data: approved if data == raw else None)
     result = uploads.validate_uploaded_standard(file_name="renamed.pdf", file_bytes=raw, authorized_public_document=True)
     assert (result.standard.standard_id, result.standard.version) == (standard_id, version)
     assert result.verified_source_url == approved.source_url
+    assert result.effective_date_info == approved.effective_date_info
     mapping = uploads.analyze_uploaded_standard(result, "R1").requirement_mapping
     assert approved.source_url in mapping.source_locator
     assert "1.1." in mapping.draft_summary
@@ -78,3 +83,8 @@ def test_catalog_content_mismatch_and_unverified_version_stop(monkeypatch: pytes
     monkeypatch.setattr(uploads, "match_catalog_document", lambda data: None)
     with pytest.raises(uploads.UploadValidationError, match="Source verification needed"):
         uploads.validate_uploaded_standard(file_name="cip-010-5.pdf", file_bytes=raw, authorized_public_document=True)
+
+
+def test_effective_date_requires_jurisdiction_and_source() -> None:
+    with pytest.raises(ValidationError):
+        EffectiveDateInfo.model_validate({"date": "2030-01-01"})

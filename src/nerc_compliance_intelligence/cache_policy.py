@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from nerc_compliance_intelligence.uploaded_standard import UploadedStandard
 
 
-CACHE_POLICY_VERSION = "nerc-portable-cip-catalog-v7"
+CACHE_POLICY_VERSION = "nerc-requirement-effective-schedules-v9"
 DASHBOARD_CACHE_MAX_ENTRIES = 32
 
 
