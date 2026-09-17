@@ -1,5 +1,13 @@
 # Decision Log
 
+## 2026-09-17 — Portable CIP source verification
+
+- Package SHA-256 fingerprints and official source URLs for all 24 PDFs already approved in the local manifest, covering CIP-002 through CIP-015. Do not publish PDF contents or the local database.
+- Preserve exact standard/version and source URL when a fingerprint matches; reject content/catalog identity mismatch. Content-marker validation remains a separate, weaker path, never described as fingerprint verification.
+- Direct retrieval of the 24 explicit official URLs was rejected by the remote server. Record the approval basis as the existing approved corpus, not fresh remote verification. Do not infer current enforcement or jurisdictional applicability.
+- Unknown or altered low-signal uploads receive a source-verification instruction. New approvals require deliberate catalog maintenance, not user-controlled URLs or filenames.
+- Bump the session/cache policy to regenerate source metadata. No model calls, email, operational writes, deployment, or GitHub publication are part of this change.
+
 ## 2026-09-16 — Preserve complete Key parts wording
 
 - Remove 220-character part clipping and the 1,500-character overall requirement-summary clipping. Extraction remains bounded to the same requirement source block.

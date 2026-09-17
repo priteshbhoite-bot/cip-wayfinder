@@ -4,6 +4,8 @@
 
 ## Final review guide
 
+Cloud uploads can now match a packaged approved-source fingerprint catalog covering 24 exact CIP versions across CIP-002 through CIP-015, without access to the local PDF corpus. See [CIP source catalog coverage and limits](docs/cip-source-catalog.md). This is not an exhaustive list of historical, future, or currently effective standards. Unknown documents still require source verification; the app does not fetch documents during uploads.
+
 Requirement summaries retain complete Key parts paragraphs, without character-limit ellipses. After updating from an older version, upload the PDF again to rebuild any shortened session data.
 
 Review package source text wraps to the available width. Remediation steps appear as full-text Action, Owner, Decision, and End state fields instead of clipped table cells; expand a requirement or control to read its details.

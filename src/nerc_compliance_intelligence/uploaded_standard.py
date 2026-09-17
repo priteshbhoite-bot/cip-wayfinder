@@ -20,6 +20,7 @@ from pypdf import PdfReader
 from nerc_compliance_intelligence.local_corpus import PdfCorpusManifest
 from nerc_compliance_intelligence.requirement_extraction import extract_requirement_blocks
 from nerc_compliance_intelligence.schemas import RequirementMapping, StandardVersion
+from nerc_compliance_intelligence.source_catalog import match_catalog_document
 
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -84,6 +85,7 @@ class UploadedStandard(BaseModel):
     nerc_identity_signals: list[str] = Field(default_factory=list)
     source_type: str = "content-validated NERC-associated local PDF"
     stored_persistently: bool = False
+    verified_source_url: str | None = None
 
 
 class UploadedRequirementOption(BaseModel):
@@ -411,10 +413,18 @@ def validate_uploaded_standard(
         corpus_directory=approved_corpus_directory,
         manifest_path=approved_corpus_manifest_path,
     )
+    try:
+        catalog_match = match_catalog_document(file_bytes)
+    except (OSError, ValueError):
+        raise UploadValidationError("The approved source catalog is unavailable or invalid. Ask the administrator to restore it.") from None
     content_identities = {
         (standard.standard_id, standard.version) for standard in content_standards
     }
-    if approved_corpus_match is not None:
+    if catalog_match is not None:
+        approved_identity = (catalog_match.standard_id, catalog_match.version)
+        if approved_identity not in content_identities:
+            raise UploadValidationError("The approved catalog version does not match the PDF content.")
+    elif approved_corpus_match is not None:
         approved_identity = (
             approved_corpus_match.standard.standard_id,
             approved_corpus_match.standard.version,
@@ -440,11 +450,13 @@ def validate_uploaded_standard(
         key=lambda item: (item.standard_id, item.version) != preferred_identity,
     )
     identity_signals, identity_score = _nerc_identity_signals(full_text, metadata_text)
+    if catalog_match is not None:
+        identity_signals.append("exact approved catalog fingerprint match")
     if approved_corpus_match is not None:
         identity_signals.append("exact approved local corpus byte match")
-    if identity_score < 3 and approved_corpus_match is None:
+    if identity_score < 3 and approved_corpus_match is None and catalog_match is None:
         raise UploadValidationError(
-            "the PDF could not be identified locally as NERC-published or NERC-shared standards material"
+            "Source verification needed: this PDF does not match the approved source catalog and has insufficient NERC identity markers. It may be a valid new version or a modified copy. Provide its official NERC download URL to the administrator; renaming the file will not verify it."
         )
 
     primary = standards[0]
@@ -463,6 +475,8 @@ def validate_uploaded_standard(
         document_type=_classify_document(full_text),
         referenced_standards=normalized_standards,
         nerc_identity_signals=identity_signals,
+        verified_source_url=catalog_match.source_url if catalog_match else None,
+        source_type="approved public CIP catalog fingerprint" if catalog_match else "content-validated NERC-associated local PDF",
     )
 
 
@@ -489,7 +503,7 @@ def analyze_uploaded_standard(
         standard=selected_standard,
         requirement_reference=selected_option.requirement_reference,
         source_name=uploaded_standard.file_name,
-        source_locator=f"uploaded local PDF, {page_label}",
+        source_locator=f"uploaded PDF, {page_label}" + (f"; {uploaded_standard.verified_source_url}" if uploaded_standard.verified_source_url else ""),
         draft_summary=selected_option.source_text or selected_option.summary,
         domain=selected_option.domain,
         applicable_systems=selected_option.applicable_systems,

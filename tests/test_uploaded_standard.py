@@ -238,7 +238,7 @@ def test_same_named_but_different_pdf_is_not_trusted_by_manifest(tmp_path: Path)
         encoding="utf-8",
     )
 
-    with pytest.raises(UploadValidationError, match="could not be identified locally"):
+    with pytest.raises(UploadValidationError, match="Source verification needed"):
         validate_uploaded_standard(
             file_name="cip-010-5.pdf",
             file_bytes=unapproved_bytes,
@@ -270,7 +270,7 @@ def test_same_named_but_different_pdf_is_not_trusted_by_manifest(tmp_path: Path)
                 nerc_metadata=False,
             ),
             True,
-            "could not be identified locally",
+            "Source verification needed",
         ),
         ("guidance.pdf", _pdf_bytes("North American Electric Reliability Corporation NERC Reliability Guidance without a standard number."), True, "recognized NERC Reliability Standard reference"),
         ("CIP-010-5.txt", b"not a PDF", True, "one PDF"),
